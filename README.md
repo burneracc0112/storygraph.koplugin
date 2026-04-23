@@ -129,7 +129,7 @@ By default, (when enabled) updates will be sent to hardcover at a frequency you 
 minute. If you don't need updates this frequently, and to preserve battery, you can decrease this frequency further.
 
 You can also choose to update based on your percentage progress through a book. With this option, an update will be sent
-when you cross a percentage threshold (for examppe, every 10% completed).
+when you cross a percentage threshold (for example, every 10% completed).
 
 ### Always track progress by default
 
