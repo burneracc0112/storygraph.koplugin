@@ -361,17 +361,15 @@ function HardcoverApi:findUserBook(book_id, user_id)
 
   -- Progress
   local progress_pane = root:select(".progress-tracker-pane")[1]
-  local progress_pages = 0
   local last_reached_percent = 0
   local book_num_of_pages = 0
   local progress_type = "percentage"
   
   if progress_pane then
-    local pages_input = progress_pane:select(".read-status-last-reached-pages")[1]
     local total_pages_input = progress_pane:select(".read-status-book-num-of-pages")[1]
     local type_select = progress_pane:select(".read-status-progress-type")[1]
 
-    if pages_input then progress_pages = tonumber(pages_input.attributes.value) or 0 end
+
     if total_pages_input then book_num_of_pages = tonumber(total_pages_input.attributes.value) or 0 end
     if type_select then
       local selected = type_select:select("option[selected='selected']")[1]
@@ -390,7 +388,7 @@ function HardcoverApi:findUserBook(book_id, user_id)
       end
     end
 
-    if last_reached_percent == 0 and progress_pages == 0 then
+    if last_reached_percent == 0 then
       local progress_text = get_node_text(progress_pane)
       local pages = progress_text:match("(%d+)%%")
       if pages then
@@ -626,10 +624,7 @@ function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_a
     logger.warn("StoryGraph: Could not extract CSRF token for progress update")
   end
 
-  -- Extract current progress values to send back (required by StoryGraph)
-  local last_reached_pages = html:match('class="read%-status%-last%-reached%-pages"%s+[^>]*value="([^"]+)"') or "0"
   local book_num_of_pages = html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"') or "0"
-  local last_reached_percent = html:match('class="read%-status%-last%-reached%-percent"%s+[^>]*value="([^"]+)"') or "0"
 
   local update_url = base_url .. "/update-progress"
   logger.info("StoryGraph: Updating progress to " .. percentage .. "% for book " .. book_id)
@@ -648,9 +643,7 @@ function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_a
   local code, resp, resp_headers = self:request(update_url, "POST", {
     ["read_status[progress_number]"] = percentage,
     ["read_status[progress_type]"] = "percentage",
-    ["read_status[last_reached_pages]"] = last_reached_pages,
     ["read_status[book_num_of_pages]"] = book_num_of_pages,
-    ["read_status[last_reached_percent]"] = last_reached_percent,
     ["book_id"] = book_id,
     ["on_book_page"] = "true",
     ["authenticity_token"] = csrf
