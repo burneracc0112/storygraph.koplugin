@@ -7,6 +7,7 @@ local logger = require("logger")
 
 local T = require("ffi/util").template
 
+local Event = require("ui/event")
 local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 
@@ -144,6 +145,16 @@ function HardcoverMenu:getSubMenuItems(book_view)
         self.cache:cacheUserBook()
 
         return self:getStatusSubMenuItems()
+      end,
+      separator = true
+    },
+    book_view and {
+      text = _("Jump to StoryGraph position"),
+      enabled_func = function()
+        return self:isActive() and self.settings:bookLinked()
+      end,
+      callback = function()
+        UIManager:broadcastEvent(Event:new("StoryGraphPullPosition"))
       end,
       separator = true
     },
@@ -870,6 +881,25 @@ Quotes always include this info.]],
       hold_callback = function()
         UIManager:show(InfoMessage:new {
           text = [[Show a popup dialog when a mandatory update is required. If disabled, the plugin will silently stop working until updated.]],
+        })
+      end
+    },
+    {
+      text = "Skip update if behind remote",
+      enabled_func = function()
+        return true
+      end,
+      checked_func = function()
+        return self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
+      end,
+      callback = function(menu_instance)
+        local setting = self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
+        self.settings:updateSetting(SETTING.SKIP_BEHIND_PROGRESS, not setting)
+        menu_instance:updateItems()
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[When enabled, automatic syncs will be skipped if your local reading position is behind the progress already recorded on StoryGraph. This prevents accidentally overwriting progress made on another device.]],
         })
       end
     },

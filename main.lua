@@ -8,6 +8,7 @@ local math = require("math")
 local NetworkManager = require("ui/network/manager")
 local Trapper = require("ui/trapper")
 local UIManager = require("ui/uimanager")
+local Event = require("ui/event")
 
 local InfoMessage = require("ui/widget/infomessage")
 local Notification = require("ui/widget/notification")
@@ -236,6 +237,53 @@ function HardcoverApp:onStoryGraphStopTrack()
   })
 end
 
+function HardcoverApp:onStoryGraphPullPosition()
+  if not self.ui.document or not self.settings:bookLinked() then return end
+
+  local ConfirmBox = require("ui/widget/confirmbox")
+  local book_id = self.settings:getLinkedBookId()
+
+  UIManager:show(Notification:new {
+    text = _("Fetching position from StoryGraph..."),
+    timeout = 3,
+  })
+
+  self.wifi:withWifi(function()
+    local status = Api:findUserBook(book_id, User:getId())
+    if not status or not status.last_reached_percent then
+      UIManager:show(InfoMessage:new {
+        text = _("Could not fetch position from StoryGraph."),
+        icon = "notice-warning",
+      })
+      return
+    end
+
+    local remote_percent = tonumber(status.last_reached_percent) or 0
+    if remote_percent == 0 then
+      UIManager:show(InfoMessage:new {
+        text = _("StoryGraph shows no progress recorded yet."),
+      })
+      return
+    end
+
+    local document_pages = self.ui.document:getPageCount()
+    local target_page = math.max(1, math.floor((remote_percent / 100) * document_pages))
+
+    UIManager:show(ConfirmBox:new {
+      text = _(string.format(
+        "StoryGraph shows %d%% progress.\nJump to page %d of %d?",
+        remote_percent, target_page, document_pages
+      )),
+      ok_text = _("Jump"),
+      ok_callback = function()
+        self.ui:handleEvent(Event:new("GotoPage", target_page))
+        -- Update cached status
+        self.state.book_status = status
+      end,
+    })
+  end)
+end
+
 function HardcoverApp:onStoryGraphUpdateProgress()
   if self.ui.document and self.settings:bookLinked() then
     self:updatePageNow(function(result)
@@ -300,6 +348,17 @@ function HardcoverApp:_handlePageUpdate(filename, percentage, immediate, callbac
 
   if self.state.book_status.status_id ~= HARDCOVER.STATUS.READING then
     return
+  end
+
+  -- Don't push progress if local is behind remote (prevents accidental downgrade)
+  -- Configurable via Settings > "Skip update if behind remote"
+  local skip_behind = self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
+  if skip_behind then
+    local remote_percent = tonumber(self.state.book_status.last_reached_percent) or 0
+    if not immediate and percentage < remote_percent then
+      logger.info("StoryGraph: Local progress (" .. percentage .. "%) is behind remote (" .. remote_percent .. "%). Skipping update.")
+      return
+    end
   end
 
   local reads = self.state.book_status.user_book_reads

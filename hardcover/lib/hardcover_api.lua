@@ -368,25 +368,34 @@ function HardcoverApi:findUserBook(book_id, user_id)
   
   if progress_pane then
     local pages_input = progress_pane:select(".read-status-last-reached-pages")[1]
-    local percent_input = progress_pane:select(".read-status-last-reached-percent")[1]
     local total_pages_input = progress_pane:select(".read-status-book-num-of-pages")[1]
     local type_select = progress_pane:select(".read-status-progress-type")[1]
-    
+
     if pages_input then progress_pages = tonumber(pages_input.attributes.value) or 0 end
-    if percent_input then last_reached_percent = tonumber(percent_input.attributes.value) or 0 end
     if total_pages_input then book_num_of_pages = tonumber(total_pages_input.attributes.value) or 0 end
     if type_select then
       local selected = type_select:select("option[selected='selected']")[1]
       if selected then progress_type = selected.attributes.value end
     end
-    
-    -- Fallback if inputs not found (old behavior)
-    if progress_pages == 0 then
+
+    local bar_pct = html:match("edit%-progress[^>]*>%s*<div[^>]*style=\"width:%s*(%d+)%%\"")
+    if bar_pct then
+      last_reached_percent = tonumber(bar_pct)
+      logger.info("StoryGraph: progress from bar = " .. last_reached_percent .. "%")
+    else
+      local percent_input = progress_pane:select(".read-status-last-reached-percent")[1]
+      if percent_input then
+        last_reached_percent = tonumber(percent_input.attributes.value) or 0
+        logger.info("StoryGraph: progress from hidden input = " .. last_reached_percent .. "%")
+      end
+    end
+
+    if last_reached_percent == 0 and progress_pages == 0 then
       local progress_text = get_node_text(progress_pane)
       local pages = progress_text:match("(%d+)%%")
       if pages then
         last_reached_percent = tonumber(pages)
-        -- We don't know the page number, so we leave it at 0 or estimate if we have book_num_of_pages
+        logger.info("StoryGraph: progress from text scan = " .. last_reached_percent .. "%")
       end
     end
   end
