@@ -21,9 +21,9 @@ jobs:
       - name: Zip release
         run: |
           cd ..
-          zip -r hardcoverapp.koplugin.zip hardcoverapp.koplugin -x '*/*.git*' '*/spec/*' '*/lua_modules/*' '*/.luarocks/*' '*/lua' '*/luarocks' '*/.tool-versions' '*/*.rockspec'
+          zip -r storygraph.koplugin.zip storygraph.koplugin -x '*/*.git*' '*/spec/*' '*/lua_modules/*' '*/.luarocks/*' '*/lua' '*/luarocks' '*/.tool-versions' '*/*.rockspec'
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ../hardcoverapp.koplugin.zip
+          files: ../storygraph.koplugin.zip
