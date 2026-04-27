@@ -18,6 +18,10 @@ local Settings = {
   SESSION_COOKIE = "session_cookie",
   REMEMBER_TOKEN = "remember_token",
   INCLUDE_LOCATION_IN_NOTES = "include_location_in_notes",
+  IGNORE_VERSION_BLOCK = "ignore_version_block",
+  SHOW_VERSION_DIALOG = "show_version_dialog",
+  VERSION_CHECK_INTERVAL = "version_check_interval",
+  LAST_VERSION_CHECK = "last_version_check",
 }
 
 Settings.AUTOLINK_OPTIONS = { Settings.LINK_BY_ISBN, Settings.LINK_BY_TITLE }

@@ -51,3 +51,13 @@ When enabled, the plugin will periodically sync your progress to StoryGraph:
 - **Automatically link by ISBN/Title**: Attempt to find matching books on StoryGraph automatically when opening a new document.
 - **Enable wifi on demand**: Briefly enable wifi for background syncs to preserve battery life.
 - **Confirm changes**: Prompt for confirmation before changing a book's status (e.g., Want to Read -> Read).
+
+## Versioning & Mandatory Updates
+
+To prevent data corruption and ensure compatibility with StoryGraph's unofficial API, the plugin includes a remote versioning system.
+
+- **Automatic Checks**: The plugin periodically checks for mandatory updates via GitHub. If the StoryGraph API changes in a way that breaks older versions, the plugin will automatically disable sync to prevent errors.
+- **Smart Blocking**: When a mandatory update is required, the plugin menus will be greyed out.
+- **Configurable Frequency**: Use the **"Version check frequency"** slider to choose how often the plugin checks for updates (from 1 to 20 days). Default is 1 day.
+- **Manual Override**: You can enable **"Ignore version blocks"** to bypass mandatory update requirements. Use this with caution as older versions may break sync if the StoryGraph API changes.
+- **Silent Mode**: Disable **"Show version alert dialog"** if you prefer the plugin to silently stop working when an update is required, rather than showing a notification.

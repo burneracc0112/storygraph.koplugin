@@ -135,6 +135,7 @@ function HardcoverApp:init()
   }
 
   self.menu = HardcoverMenu:new {
+    app = self,
     enabled = true,
 
     cache = self.cache,
@@ -165,6 +166,7 @@ end
 --   remote_page (optional): The mapped page in the linked book edition
 --   note_type: one of "quote" or "note"
 function HardcoverApp:onStoryGraphNote(note_params)
+  if not self:isActive() then return end
   -- Fetch latest progress from API for quotes/notes
   local book_id = self.settings:getLinkedBookId()
   local remote_percent = self.state.book_status.last_reached_percent or 0
@@ -400,8 +402,74 @@ function HardcoverApp:onReaderReady()
   self.state.page = self.ui:getCurrentPage()
 
   if self.ui.document and (self.settings:syncEnabled() or (not self.settings:bookLinked() and self.settings:autolinkEnabled())) then
-    UIManager:scheduleIn(2, self.startReadCache, self)
+    UIManager:scheduleIn(4, self.startReadCache, self)
   end
+  UIManager:scheduleIn(1, self.initiateVersionCheck, self)
+end
+
+function HardcoverApp:initiateVersionCheck()
+  if self.state.version_checked then return end
+
+  local last_check = self.settings:readSetting(SETTING.LAST_VERSION_CHECK) or 0
+  local interval = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
+  local now = os.time()
+  
+  -- Always check on first startup of the session, otherwise respect interval
+  if not self.state.session_checked or (now - last_check >= (interval * 24 * 3600)) then
+    self.state.session_checked = true
+    self:checkForUpdates()
+  else
+    -- Schedule it for when it's next due
+    local next_check_in = math.max(1, (interval * 24 * 3600) - (now - last_check))
+    UIManager:scheduleIn(next_check_in, self.checkForUpdates, self)
+  end
+end
+
+function HardcoverApp:checkForUpdates()
+  -- If we're already out of date and NOT ignoring, no need to keep checking
+  if not self.enabled and not self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) then
+    return
+  end
+
+  self.wifi:withWifi(function()
+    local Github = require("hardcover/lib/github")
+    local info = Github:fetchVersionInfo()
+    if not info then return end
+
+    self.state.version_checked = true
+    self.settings:updateSetting(SETTING.LAST_VERSION_CHECK, os.time())
+
+    -- Check for mandatory update
+    local plugin_path = self.path or (DataStorage:getPluginDir() .. "/storygraph.koplugin")
+    local Meta = dofile(plugin_path .. "/_meta.lua")
+
+    if info.api_version and Meta.api_version < info.api_version then
+      -- Always mark as disabled internally if version is outdated
+      self.enabled = false
+      self.menu.enabled = false
+
+      if self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) then
+        UIManager:show(Notification:new {
+          text = _("StoryGraph: Mandatory update available (Ignored)"),
+          timeout = 5
+        })
+      else
+        self:cancelPendingUpdates()
+        
+        if self.settings:readSetting(SETTING.SHOW_VERSION_DIALOG) ~= false then
+          UIManager:show(Notification:new {
+            text = info.message or _("StoryGraph: Mandatory update required!"),
+            timeout = 10
+          })
+        end
+        return
+      end
+    else
+      -- Up to date, schedule the next check
+      local interval = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
+      UIManager:scheduleIn(interval * 24 * 3600, self.checkForUpdates, self)
+    end
+  end)
 end
 
 function HardcoverApp:cancelPendingUpdates()
@@ -575,6 +643,10 @@ end
 
 function HardcoverApp:startReadCache()
   --logger.warn("HARDCOVER start read cache")
+  if not self:isActive() then
+    return
+  end
+
   if self.state.read_cache_started then
     --logger.warn("HARDCOVER Cache already started")
     return
@@ -651,16 +723,24 @@ function HardcoverApp:startReadCache()
     end)
 end
 
+function HardcoverApp:isActive()
+  return self.enabled or self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) == true
+end
+
 function HardcoverApp:registerHighlight()
   self.ui.highlight:removeFromHighlightDialog(HIGHLIGHT_MENU_NAME)
 
-  if self.enabled and self.settings:bookLinked() then
+  if self.settings:bookLinked() then
     self.ui.highlight:addToHighlightDialog(HIGHLIGHT_MENU_NAME, function(this)
       return {
         text_func = function()
           return _("StoryGraph quote")
         end,
+        enabled_func = function()
+          return self:isActive()
+        end,
         callback = function()
+          if not self:isActive() then return end
           local selected_text = this.selected_text
           local raw_page = selected_text.pos0.page
           if not raw_page then

@@ -12,6 +12,7 @@ local UIManager = require("ui/uimanager")
 
 local UpdateDoubleSpinWidget = require("hardcover/lib/ui/update_double_spin_widget")
 local InfoMessage = require("ui/widget/infomessage")
+local Notification = require("ui/widget/notification")
 local SpinWidget = require("ui/widget/spinwidget")
 
 local Api = require("hardcover/lib/hardcover_api")
@@ -35,10 +36,14 @@ end
 
 -- Removed privacy_labels
 
+function HardcoverMenu:isActive()
+  return self.enabled or self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) == true
+end
+
 function HardcoverMenu:mainMenu()
   return {
     enabled_func = function()
-      return self.enabled
+      return true
     end,
     text_func = function()
       return self.settings:bookLinked() and _("StoryGraph: " .. ICON.LINK) or _("StoryGraph")
@@ -66,8 +71,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
         end
       end,
       enabled_func = function()
-        -- leave button enabled to allow clearing local link when api disabled
-        return self.enabled or self.settings:bookLinked()
+        return self:isActive()
       end,
       hold_callback = function(menu_instance)
         if self.settings:bookLinked() then
@@ -83,7 +87,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
       end,
       keep_menu_open = true,
       callback = function(menu_instance)
-        if not self.enabled then
+        if not self:isActive() then
           return
         end
 
@@ -108,7 +112,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
         return _(title)
       end,
       enabled_func = function()
-        return self.enabled and self.settings:bookLinked()
+        return self:isActive() and self.settings:bookLinked()
       end,
       callback = function(menu_instance)
         self.hardcover:showChangeEditionDialog(function()
@@ -124,7 +128,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
         return self.settings:syncEnabled()
       end,
       enabled_func = function()
-        return self.settings:bookLinked()
+        return self:isActive() and self.settings:bookLinked()
       end,
       callback = function()
         local sync = not self.settings:syncEnabled()
@@ -134,7 +138,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
     book_view and {
       text = _("Update status"),
       enabled_func = function()
-        return self.settings:bookLinked()
+        return self:isActive() and self.settings:bookLinked()
       end,
       sub_item_table_func = function()
         self.cache:cacheUserBook()
@@ -153,11 +157,11 @@ function HardcoverMenu:getSubMenuItems(book_view)
     {
       text = _("About"),
       callback = function()
-        local new_release = Github:newestRelease()
+        local info = Github:fetchVersionInfo()
         local version = table.concat(VERSION, ".")
         local new_release_str = ""
-        if new_release then
-          new_release_str = " (latest v" .. new_release .. ")"
+        if info and info.plugin_version and Github:isNewer(info.plugin_version) then
+          new_release_str = " (latest v" .. info.plugin_version .. ")"
         end
         local settings_file = DataStorage:getSettingsDir() .. "/" .. "storygraphsync_settings.lua"
 
@@ -190,9 +194,6 @@ function HardcoverMenu:getStatusSubMenuItems()
   local items = {
     {
       text = _(ICON.BOOKMARK .. " Want To Read"),
-      enabled_func = function()
-        return self.enabled
-      end,
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.TO_READ
       end,
@@ -213,9 +214,6 @@ function HardcoverMenu:getStatusSubMenuItems()
     },
     {
       text = _(ICON.OPEN_BOOK .. " Currently Reading"),
-      enabled_func = function()
-        return self.enabled
-      end,
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.READING
       end,
@@ -236,9 +234,6 @@ function HardcoverMenu:getStatusSubMenuItems()
     },
     {
       text = _(ICON.CHECKMARK .. " Read"),
-      enabled_func = function()
-        return self.enabled
-      end,
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.FINISHED
       end,
@@ -259,9 +254,6 @@ function HardcoverMenu:getStatusSubMenuItems()
     },
     {
       text = _(ICON.PAUSE .. " Paused"),
-      enabled_func = function()
-        return self.enabled
-      end,
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.PAUSED
       end,
@@ -282,9 +274,6 @@ function HardcoverMenu:getStatusSubMenuItems()
     },
     {
       text = _(ICON.STOP_CIRCLE .. " Did Not Finish"),
-      enabled_func = function()
-        return self.enabled
-      end,
       checked_func = function()
         return self.state.book_status.status_id == HARDCOVER.STATUS.DNF
       end,
@@ -326,7 +315,7 @@ function HardcoverMenu:getStatusSubMenuItems()
     {
       text = _("Owned"),
       enabled_func = function()
-        return self.enabled and self.state.book_status.id ~= nil
+        return self.state.book_status.id ~= nil
       end,
       checked_func = function()
         return self.state.book_status.is_owned == true
@@ -344,7 +333,7 @@ function HardcoverMenu:getStatusSubMenuItems()
     {
       text = _("Favorite"),
       enabled_func = function()
-        return self.enabled and self.state.book_status.id ~= nil
+        return self.state.book_status.id ~= nil
       end,
       checked_func = function()
         return self.state.book_status.is_favorite == true
@@ -372,9 +361,6 @@ function HardcoverMenu:getStatusSubMenuItems()
         local total_pages = self.ui.document:getPageCount()
         local current_percent = math.floor((current_page / total_pages) * 100)
         return T(_("Update progress: %1%"), current_percent)
-      end,
-      enabled_func = function()
-        return self.enabled
       end,
       callback = function()
         local current_page = self.ui:getCurrentPage()
@@ -829,6 +815,96 @@ May improve compatibility for some versions of KOReader]],
           text = [[Automatically append Chapter, Page, and % info to your regular notes. 
           
 Quotes always include this info.]],
+        })
+      end
+    },
+    {
+      text = "Ignore version blocks",
+      enabled_func = function()
+        return true
+      end,
+      checked_func = function()
+        return self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) == true
+      end,
+      callback = function(menu_instance)
+        local setting = self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) == true
+        local new_setting = not setting
+        self.settings:updateSetting(SETTING.IGNORE_VERSION_BLOCK, new_setting)
+        
+        if new_setting then
+          -- If we just unblocked, try to start sync
+          UIManager:show(Notification:new {
+            text = _("StoryGraph: Version block ignored. Sync enabled."),
+            timeout = 5
+          })
+          self.app:startReadCache()
+        else
+          -- If we just re-blocked, cancel pending
+          UIManager:show(Notification:new {
+            text = _("StoryGraph: Version block active. Sync disabled."),
+            timeout = 5
+          })
+          self.app:cancelPendingUpdates()
+        end
+        menu_instance:updateItems()
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[Bypass mandatory update requirements. Use at your own risk as older versions may break sync or cause errors if the StoryGraph API changes.]],
+        })
+      end
+    },
+    {
+      text = "Show version alert dialog",
+      enabled_func = function()
+        return true
+      end,
+      checked_func = function()
+        return self.settings:readSetting(SETTING.SHOW_VERSION_DIALOG) ~= false
+      end,
+      callback = function(menu_instance)
+        local setting = self.settings:readSetting(SETTING.SHOW_VERSION_DIALOG) ~= false
+        self.settings:updateSetting(SETTING.SHOW_VERSION_DIALOG, not setting)
+        menu_instance:updateItems()
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[Show a popup dialog when a mandatory update is required. If disabled, the plugin will silently stop working until updated.]],
+        })
+      end
+    },
+    {
+      text = "Version check frequency",
+      enabled_func = function()
+        return true
+      end,
+      callback = function(menu_instance)
+        local current = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
+        if type(current) == "table" then current = 1 end
+        local spinner
+        spinner = SpinWidget:new {
+          value = current,
+          min = 1,
+          max = 30,
+          unit = " day(s)",
+          title = "Check for updates every X days",
+          callback = function(v1, v2)
+            local value = type(v1) == "number" and v1 or v2
+            self.settings:updateSetting(SETTING.VERSION_CHECK_INTERVAL, value)
+            UIManager:close(spinner)
+            menu_instance:updateItems()
+          end,
+        }
+        UIManager:show(spinner)
+      end,
+      text_func = function()
+        local current = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
+        if type(current) == "table" then current = 1 end
+        return "Version check frequency: " .. current .. " day(s)"
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[How often to check for mandatory updates. Default is 1 day.]],
         })
       end
     },
