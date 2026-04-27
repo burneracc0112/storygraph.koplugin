@@ -58,22 +58,6 @@ function JournalDialog:init()
   InputDialog.init(self)
   self.note_input = self._input_widget
 
-  -- Progress Type Toggle
-  local progress_type_toggle = ToggleSwitch:new {
-    width = self.width - 40,
-    margin = 10,
-    alternate = false,
-    toggle = { _("Percentage"), _("Page") },
-    values = { "percentage", "pages" },
-    config = self,
-    callback = function(position)
-      self.progress_type = position == 1 and "percentage" or "pages"
-      self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
-    end
-  }
-  progress_type_toggle:setPosition(self.progress_type == "percentage" and 1 or 2)
-  self:addWidget(progress_type_toggle)
-
   -- Progress Button
   self.page_button = Button:new {
     text_func = function()
@@ -110,7 +94,7 @@ function JournalDialog:init()
           if remote_changed then
             local mapped_local
             if self.progress_type == "percentage" then
-              mapped_local = math.floor((new_remote_val / 100) * total_pages)
+              mapped_local = math.ceil((new_remote_val / 100) * total_pages)
             else
               mapped_local = self.page_mapper:getUnmappedPage(new_remote_val, total_pages, remote_pages)
             end
@@ -118,7 +102,7 @@ function JournalDialog:init()
           else
             local mapped_remote
             if self.progress_type == "percentage" then
-              mapped_remote = math.floor((new_local_val / total_pages) * 100)
+              mapped_remote = math.ceil((new_local_val / total_pages) * 100)
             else
               mapped_remote = self.page_mapper:getMappedPage(new_local_val, total_pages, remote_pages)
             end
@@ -136,6 +120,35 @@ function JournalDialog:init()
       UIManager:show(spinner)
     end
   }
+
+  -- Progress Type Toggle
+  local progress_type_toggle = ToggleSwitch:new {
+    width = self.width - 40,
+    margin = 10,
+    alternate = false,
+    toggle = { _("Percentage"), _("Page") },
+    values = { "percentage", "pages" },
+    config = self,
+    callback = function(position)
+      local old_type = self.progress_type
+      self.progress_type = position == 1 and "percentage" or "pages"
+      if old_type ~= self.progress_type then
+        -- Recalculate self.page based on the new type
+        local current_local = self.page_mapper.ui:getCurrentPage()
+        local total_local = self.page_mapper.ui.document:getPageCount()
+        local remote_total = self.remote_page
+        if self.progress_type == "percentage" then
+          self.page = math.ceil((current_local / total_local) * 100)
+        else
+          self.page = self.page_mapper:getMappedPage(current_local, total_local, remote_total)
+        end
+      end
+      self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
+      UIManager:setDirty(self.page_button, "partial")
+    end
+  }
+  progress_type_toggle:setPosition(self.progress_type == "percentage" and 1 or 2)
+  self:addWidget(progress_type_toggle)
 
   -- Date Button (triggers DateTimeWidget)
   self.date_button = Button:new {
