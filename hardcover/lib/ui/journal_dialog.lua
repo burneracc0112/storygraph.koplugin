@@ -7,8 +7,9 @@ local HorizontalSpan = require("ui/widget/horizontalspan")
 local InputDialog = require("ui/widget/inputdialog")
 local InputText = require("ui/widget/inputtext")
 local Size = require("ui/size")
-local SpinWidget = require("ui/widget/spinwidget")
+local ToggleSwitch = require("ui/widget/toggleswitch")
 local DateTimeWidget = require("ui/widget/datetimewidget")
+local UpdateDoubleSpinWidget = require("hardcover/lib/ui/update_double_spin_widget")
 local TextWidget = require("ui/widget/textwidget")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local UIManager = require("ui/uimanager")
@@ -22,11 +23,16 @@ local JournalDialog = InputDialog:extend {
   title = "StoryGraph: Add note",
   padding = 10,
 
-  page = nil, -- local progress percent
-  remote_page = nil, -- remote progress percent
+  page = nil, -- current mapped value (percent or page)
+  remote_page = nil, -- raw remote page count
+  progress_type = "percentage",
   book_id = nil,
   date = nil, -- table with day, month, year
 }
+  
+function JournalDialog:onConfigChoose(key, value)
+  -- Satisfy ToggleSwitch requirement
+end
 
 function JournalDialog:init()
   self:setModified()
@@ -44,6 +50,7 @@ function JournalDialog:init()
       book_id = self.book_id,
       text = self.note_input:getText(),
       progress = self.page,
+      progress_type = self.progress_type,
       date = self.date
     })
   end
@@ -51,29 +58,82 @@ function JournalDialog:init()
   InputDialog.init(self)
   self.note_input = self._input_widget
 
+  -- Progress Type Toggle
+  local progress_type_toggle = ToggleSwitch:new {
+    width = self.width - 40,
+    margin = 10,
+    alternate = false,
+    toggle = { _("Percentage"), _("Page") },
+    values = { "percentage", "pages" },
+    config = self,
+    callback = function(position)
+      self.progress_type = position == 1 and "percentage" or "pages"
+      self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
+    end
+  }
+  progress_type_toggle:setPosition(self.progress_type == "percentage" and 1 or 2)
+  self:addWidget(progress_type_toggle)
+
   -- Progress Button
   self.page_button = Button:new {
     text_func = function()
-      return _("Progress: " .. self.page .. "%")
+      if self.progress_type == "percentage" then
+        return _("Progress: " .. self.page .. "%")
+      else
+        return _("Page: " .. self.page .. " / " .. (self.remote_page or "?"))
+      end
     end,
     width = (self.width - 20) / 2,
     text_font_size = 18,
     bordersize = Size.border.thin,
     callback = function()
-      local progress_picker = DateTimeWidget:new{
-        day = self.page,
-        day_min = 0,
-        day_max = 100,
+      local current_page = self.page_mapper.ui:getCurrentPage()
+      local total_pages = self.page_mapper.ui.document:getPageCount()
+      local remote_pages = self.remote_page
+
+      local spinner = UpdateDoubleSpinWidget:new {
+        ok_always_enabled = true,
+        left_text = self.progress_type == "percentage" and "Percentage" or "Edition page",
+        left_value = self.page,
+        left_min = 0,
+        left_max = self.progress_type == "percentage" and 100 or (remote_pages or 9999),
+        left_step = 1,
+        left_hold_step = 20,
+
+        right_text = "Local page",
+        right_value = current_page,
+        right_max = total_pages,
+        right_step = 1,
+        right_hold_step = 20,
+
+        update_callback = function(new_remote_val, new_local_val, remote_changed)
+          if remote_changed then
+            local mapped_local
+            if self.progress_type == "percentage" then
+              mapped_local = math.floor((new_remote_val / 100) * total_pages)
+            else
+              mapped_local = self.page_mapper:getUnmappedPage(new_remote_val, total_pages, remote_pages)
+            end
+            return new_remote_val, mapped_local
+          else
+            local mapped_remote
+            if self.progress_type == "percentage" then
+              mapped_remote = math.floor((new_local_val / total_pages) * 100)
+            else
+              mapped_remote = self.page_mapper:getMappedPage(new_local_val, total_pages, remote_pages)
+            end
+            return mapped_remote, new_local_val
+          end
+        end,
         ok_text = _("Set progress"),
-        title_text = _("Set progress"),
-        info_text = T(_("KOReader %1%, StoryGraph %2%"), self.page, self.remote_page or "?"),
-        callback = function(picker)
-          self.page = picker.day
+        title_text = _("Set current progress"),
+        callback = function(remote_val, _local_val)
+          self.page = remote_val
           self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
         end
       }
       self:onCloseKeyboard()
-      UIManager:show(progress_picker)
+      UIManager:show(spinner)
     end
   }
 

@@ -338,8 +338,9 @@ function HardcoverApp:onSettingsChanged(field, change, original_value)
   end
 end
 
-function HardcoverApp:_handlePageUpdate(filename, percentage, immediate, callback)
-  --logger.warn("HARDCOVER: Throttled progress update", percentage)
+function HardcoverApp:_handlePageUpdate(filename, value, immediate, callback, update_type)
+  update_type = update_type or "percentage"
+  --logger.warn("HARDCOVER: Throttled progress update", value, update_type)
   self.page_update_pending = false
 
   if not self:syncFileUpdates(filename) then
@@ -353,10 +354,10 @@ function HardcoverApp:_handlePageUpdate(filename, percentage, immediate, callbac
   -- Don't push progress if local is behind remote (prevents accidental downgrade)
   -- Configurable via Settings > "Skip update if behind remote"
   local skip_behind = self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
-  if skip_behind then
+  if skip_behind and update_type == "percentage" then
     local remote_percent = tonumber(self.state.book_status.last_reached_percent) or 0
-    if not immediate and percentage < remote_percent then
-      logger.info("StoryGraph: Local progress (" .. percentage .. "%) is behind remote (" .. remote_percent .. "%). Skipping update.")
+    if not immediate and value < remote_percent then
+      logger.info("StoryGraph: Local progress (" .. value .. "%) is behind remote (" .. remote_percent .. "%). Skipping update.")
       return
     end
   end
@@ -369,7 +370,7 @@ function HardcoverApp:_handlePageUpdate(filename, percentage, immediate, callbac
 
   local immediate_update = function()
     self.wifi:withWifi(function()
-      local result = Api:updatePage(current_read.id, current_read.edition_id, percentage, current_read.started_at)
+      local result = Api:updatePage(current_read.id, current_read.edition_id, value, current_read.started_at, update_type)
       if result then
         self.state.book_status = result
       end
@@ -576,14 +577,17 @@ function HardcoverApp:onResume()
   end
 end
 
-function HardcoverApp:updatePageNow(callback)
-  local decimal_percent = self.page_mapper:getRemotePagePercent(
-    self.state.page,
-    self.ui.document:getPageCount(),
-    self.settings:pages()
-  )
-  local percentage = math.floor(decimal_percent * 100)
-  self:_handlePageUpdate(self.ui.document.file, percentage, true, callback)
+function HardcoverApp:updatePageNow(callback, value, update_type)
+  if not value then
+    local decimal_percent = self.page_mapper:getRemotePagePercent(
+      self.state.page,
+      self.ui.document:getPageCount(),
+      self.settings:pages()
+    )
+    value = math.floor(decimal_percent * 100)
+    update_type = "percentage"
+  end
+  self:_handlePageUpdate(self.ui.document.file, value, true, callback, update_type)
 end
 
 function HardcoverApp:onNetworkDisconnecting()

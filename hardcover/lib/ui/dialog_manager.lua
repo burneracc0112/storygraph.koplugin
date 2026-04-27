@@ -29,6 +29,7 @@ local function mapJournalData(data)
     book_id = data.book_id,
     entry = data.text,
     progress = data.progress,
+    progress_type = data.progress_type or "percentage",
     date = data.date
   }
 end
@@ -166,9 +167,11 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
   local dialog
   dialog = JournalDialog:new {
     input = text,
+    input_box_height = 250,
     book_id = settings.book_id,
     page = initial_percent,
-    remote_page = remote_percent,
+    remote_page = remote_pages,
+    page_mapper = self.page_mapper,
     save_dialog_callback = function(book_data)
       local api_data = mapJournalData(book_data)
       local result = Api:createJournalEntry(api_data)

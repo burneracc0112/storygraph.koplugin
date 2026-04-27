@@ -601,7 +601,7 @@ function HardcoverApi:updateUserBook(book_id, status_id, edition_id)
   return nil
 end
 
-function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_at)
+function HardcoverApi:updatePage(user_read_id, edition_id, value, started_at, update_type)
   local book_id = user_read_id:gsub("_read", "")
   
   local book_url = base_url .. "/books/" .. book_id
@@ -627,7 +627,8 @@ function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_a
   local book_num_of_pages = html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"') or "0"
 
   local update_url = base_url .. "/update-progress"
-  logger.info("StoryGraph: Updating progress to " .. percentage .. "% for book " .. book_id)
+  update_type = update_type or "percentage"
+  logger.info("StoryGraph: Updating progress (" .. update_type .. ") to " .. value .. " for book " .. book_id)
 
   local custom_headers = {
     ["X-CSRF-Token"] = csrf,
@@ -641,8 +642,8 @@ function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_a
   end
 
   local code, resp, resp_headers = self:request(update_url, "POST", {
-    ["read_status[progress_number]"] = percentage,
-    ["read_status[progress_type]"] = "percentage",
+    ["read_status[progress_number]"] = value,
+    ["read_status[progress_type]"] = update_type,
     ["read_status[book_num_of_pages]"] = book_num_of_pages,
     ["book_id"] = book_id,
     ["on_book_page"] = "true",
@@ -660,9 +661,9 @@ function HardcoverApi:updatePage(user_read_id, edition_id, percentage, started_a
   return nil
 end
 
-function HardcoverApi:createRead(book_id, edition_id, percentage, started_at)
+function HardcoverApi:createRead(book_id, edition_id, value, started_at, update_type)
   -- For StoryGraph, creating a read record is often just updating progress for the first time
-  return self:updatePage(book_id .. "_read", edition_id, percentage, started_at)
+  return self:updatePage(book_id .. "_read", edition_id, value, started_at, update_type)
 end
 
 function HardcoverApi:createJournalEntry(data)
@@ -673,6 +674,7 @@ function HardcoverApi:createJournalEntry(data)
   
   if not csrf then
     logger.warn("StoryGraph: Could not extract CSRF token for journal entry")
+    return nil
   end
 
   -- Extract current progress values to send back (required by StoryGraph)
@@ -691,7 +693,7 @@ function HardcoverApi:createJournalEntry(data)
     ["progress_update_date[year]"] = date.year,
     ["progress_minutes"] = "",
     ["progress_number"] = data.progress or "0",
-    ["progress_type"] = "percentage",
+    ["progress_type"] = data.progress_type or "percentage",
     ["last_reached_pages"] = last_reached_pages,
     ["book_num_of_pages"] = book_num_of_pages,
     ["last_reached_percent"] = last_reached_percent,
