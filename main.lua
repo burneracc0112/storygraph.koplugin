@@ -793,7 +793,7 @@ function HardcoverApp:registerHighlight()
     self.ui.highlight:addToHighlightDialog(HIGHLIGHT_MENU_NAME, function(this)
       return {
         text_func = function()
-          return _("StoryGraph quote")
+          return _("StoryGraph: Add note")
         end,
         enabled_func = function()
           return self:isActive()

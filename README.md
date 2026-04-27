@@ -32,7 +32,7 @@ The plugin provides a unified **"Update progress: [XX]%"** menu item. This opens
 - **Set Progress**: Tap the progress button to open a native picker showing both your **KOReader** and **StoryGraph** synced percentages.
 - **Add a Note**: Write your thoughts directly in the note field.
 - **Set Date**: Tap the date button to use a beautiful side-by-side **Year-Month-Day** picker.
-- **Location Context**: By default, quotes (sent via the highlight menu) automatically include your current **Chapter, Page, and Percentage**. You can enable this for regular notes in the settings.
+- **Location Context**: By default, notes sent via the highlight menu automatically include your current **Chapter, Page, and Percentage**. You can enable this for regular notes in the settings.
 
 ### Linking a Book
 Before updates can be sent, the plugin needs to link your document to a StoryGraph book.

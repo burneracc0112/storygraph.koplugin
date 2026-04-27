@@ -19,7 +19,7 @@ local logger = require("logger")
 local JournalDialog = InputDialog:extend {
   allow_newline = true,
   results = {},
-  title = "Update StoryGraph progress",
+  title = "StoryGraph: Add note",
   padding = 10,
 
   page = nil, -- local progress percent
