@@ -12,6 +12,10 @@ function ImageLoader:isLoading()
   return self.loading == true
 end
 
+function ImageLoader:clearCache()
+  self.url_map = {}
+end
+
 local Batch = {
   load_count = nil,
   loading = false,
@@ -45,16 +49,17 @@ function Batch:loadImages(urls)
 
       local url = table.remove(url_queue, 1)
 
-      local completed, success, content = Trapper:dismissableRunInSubprocess(function()
-        return getUrlContent(url, 10, 30)
-      end)
+      if ImageLoader.url_map[url] then
+        self.callback(url, ImageLoader.url_map[url])
+      else
+        local completed, success, content = Trapper:dismissableRunInSubprocess(function()
+          return getUrlContent(url, 10, 30)
+        end)
 
-      --if not completed then
-      --  logger.warn("Aborted")
-      --end
-
-      if completed and success then
-        self.callback(url, content)
+        if completed and success then
+          ImageLoader.url_map[url] = content
+          self.callback(url, content)
+        end
       end
 
       if #url_queue > 0 then

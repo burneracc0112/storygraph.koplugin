@@ -1,3 +1,4 @@
 return {
-  token = 'your token here'
+  session_cookie = '',
+  remember_user_token = '',
 }

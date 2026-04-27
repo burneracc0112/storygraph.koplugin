@@ -86,11 +86,13 @@ function HardcoverSearchDialog:createListItem(book, active_item)
     end
   end
 
-  if book.pages then
+  if book.duration then
+    result.pages = book.duration
+  elseif book.pages then
     result.pages = book.pages
   end
 
-  if book.book_series.position then
+  if book.book_series and book.book_series.position then
     result.series = book.book_series.series.name
     result.series_index = book.book_series.position
   end
@@ -99,15 +101,41 @@ function HardcoverSearchDialog:createListItem(book, active_item)
     result.authors = table.concat(authors, ", ")
   end
 
+  local details = {}
+  if book.edition_id then
+    if book.isbn and book.isbn ~= "" and book.isbn ~= "None" then table.insert(details, "ISBN: " .. book.isbn) end
+    local format_str = book.edition_format or book.filetype or ""
+    if format_str ~= "" then table.insert(details, format_str) end
+    if book.edition_language and book.edition_language ~= "" then table.insert(details, book.edition_language) end
+    if book.pub_date and book.pub_date ~= "" and book.pub_date ~= "Not specified" then table.insert(details, book.pub_date) end
+    if book.publisher and book.publisher ~= "" then table.insert(details, book.publisher) end
+  end
+  local details_lines = {}
+  if #details > 0 then
+    local line1, line2 = {}, {}
+    for i, v in ipairs(details) do
+      if i <= 3 then table.insert(line1, v) else table.insert(line2, v) end
+    end
+    if #line1 > 0 then table.insert(details_lines, table.concat(line1, " • ")) end
+    if #line2 > 0 then table.insert(details_lines, table.concat(line2, " • ")) end
+  end
+  local details_str = table.concat(details_lines, "\n")
+
   if self.compatibility_mode then
     result.text = result.title
     result.dim = result.highlight
     if book.edition_id then
-      result.text = result.text .. " - " .. book.filetype
+      if details_str ~= "" then
+        result.text = result.text .. "\n" .. details_str
+      end
     else
       if result.authors and result.authors ~= "" then
         result.text = result.text .. " - " .. result.authors
       end
+    end
+  else
+    if book.edition_id and details_str ~= "" then
+      result.authors = details_str
     end
   end
 
@@ -115,7 +143,7 @@ function HardcoverSearchDialog:createListItem(book, active_item)
     result.filetype = book.filetype
   end
 
-  if book.cached_image.url then
+  if book.cached_image and book.cached_image.url then
     result.cover_url = book.cached_image.url
     result.cover_w = book.cached_image.width
     result.cover_h = book.cached_image.height
@@ -228,6 +256,8 @@ function HardcoverSearchDialog:onClose()
   if self.close_callback then
     self.close_callback()
   end
+  local ImageLoader = require("hardcover/lib/ui/image_loader")
+  ImageLoader:clearCache()
 
   return true
 end

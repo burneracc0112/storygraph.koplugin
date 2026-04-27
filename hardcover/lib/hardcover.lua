@@ -39,7 +39,7 @@ function Hardcover:showLinkBookDialog(force_search, link_callback)
     },
     function(book)
       self:linkBook(book)
-      link_callback(book)
+      self:showChangeEditionDialog(link_callback)
     end,
     function(search)
       self.dialog_manager:updateSearchResults(search)
@@ -49,68 +49,38 @@ function Hardcover:showLinkBookDialog(force_search, link_callback)
   )
 end
 
-function Hardcover:cacheRandomBooks()
-  local user_id = User:getId()
-
-  local books, error = Api:getRandomToRead(user_id, 10)
-  if error then
-    UIManager:show(InfoMessage:new {
-      text = _("Error fetching to-read list"),
-      icon = "notice-warning",
-      timeout = 2
-    })
-    return
-  end
-
-  cache.random_books = books
-  return books
+function Hardcover:showChangeEditionDialog(callback)
+  local editions = Api:findEditions(self.settings:getLinkedBookId(), User:getId())
+  self.dialog_manager:buildSearchDialog(
+    "Select edition",
+    editions,
+    {
+      edition_id = self.settings:getLinkedEditionId()
+    },
+    function(book)
+      if book.book_id ~= self.settings:getLinkedBookId() then
+        local success = Api:switchEdition(self.settings:getLinkedBookId(), book.book_id)
+        if not success then
+          self.dialog_manager:showError("Failed to switch edition on StoryGraph. Please try again.")
+          return
+        end
+      end
+      self:linkBook(book)
+      if callback then
+        callback(book)
+      end
+    end
+  )
 end
 
-function Hardcover:showRandomBookDialog()
-  self.wifi:wifiPrompt(function(wifi_enabled)
-    local books = cache.random_books
-    if not books then
-      books = self:cacheRandomBooks()
-    end
-
-    if not cache.random_books or #cache.random_books == 0 then
-      UIManager:show(Notification:new {
-        text = "No books found on Want to Read list",
-        timeout = 4
-      })
-
-      if wifi_enabled then
-        UIManager:nextTick(function()
-          self.wifi:wifiDisablePrompt()
-        end)
-      end
-
-      return
-    end
-
-    self.dialog_manager:buildBookListDialog("Suggest a book", cache.random_books, function()
-      books = self:cacheRandomBooks()
-      if books then
-        self.dialog_manager:updateRandomBooks(books)
-      end
-    end, wifi_enabled)
-  end)
-end
-
-function Hardcover:updateCurrentBookStatus(status, privacy_setting_id)
-  self.cache:updateBookStatus(self.ui.document.file, status, privacy_setting_id)
+function Hardcover:updateCurrentBookStatus(status)
+  self.cache:updateBookStatus(self.ui.document.file, status)
   if not self.state.book_status.id then
     self.dialog_manager:showError("Book status could not be updated")
   end
 end
 
-function Hardcover:changeBookVisibility(visibility)
-  self.cache:cacheUserBook()
-
-  if self.state.book_status.id then
-    self:updateCurrentBookStatus(self.state.book_status.status_id, visibility)
-  end
-end
+-- Removed changeBookVisibility
 
 function Hardcover:linkBook(book)
   local filename = self.ui.document.file
@@ -141,7 +111,6 @@ function Hardcover:linkBook(book)
       self.state.book_status = Api:updateUserBook(
         new_settings.book_id,
         self.state.book_status.status_id,
-        self.state.book_status.privacy_setting_id,
         new_settings.edition_id
       ) or {}
     end

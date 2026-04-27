@@ -21,4 +21,6 @@ return {
   HALF_STAR = "\u{F089}",
   -- nf-fa-link
   LINK = "\u{F0C1}",
+  -- nf-fa-pause
+  PAUSE = "\u{F04C}",
 }

@@ -33,11 +33,7 @@ function HardcoverMenu:new(o)
   }, self)
 end
 
-local privacy_labels = {
-  [HARDCOVER.PRIVACY.PUBLIC] = "Public",
-  [HARDCOVER.PRIVACY.FOLLOWS] = "Follows",
-  [HARDCOVER.PRIVACY.PRIVATE] = "Private"
-}
+-- Removed privacy_labels
 
 function HardcoverMenu:mainMenu()
   return {
@@ -45,7 +41,7 @@ function HardcoverMenu:mainMenu()
       return self.enabled
     end,
     text_func = function()
-      return self.settings:bookLinked() and _("Hardcover: " .. ICON.LINK) or _("Hardcover")
+      return self.settings:bookLinked() and _("StoryGraph: " .. ICON.LINK) or _("StoryGraph")
     end,
     sub_item_table_func = function()
       local has_book = self.ui.document and true or false
@@ -115,19 +111,9 @@ function HardcoverMenu:getSubMenuItems(book_view)
         return self.enabled and self.settings:bookLinked()
       end,
       callback = function(menu_instance)
-        local editions = Api:findEditions(self.settings:getLinkedBookId(), User:getId())
-        -- need to show "active" here, and prioritize current edition if available
-        self.dialog_manager:buildSearchDialog(
-          "Select edition",
-          editions,
-          {
-            edition_id = self.settings:getLinkedEditionId()
-          },
-          function(book)
-            self.hardcover:linkBook(book)
-            menu_instance:updateItems()
-          end
-        )
+        self.hardcover:showChangeEditionDialog(function()
+          menu_instance:updateItems()
+        end)
       end,
       keep_menu_open = true,
       separator = true
@@ -157,14 +143,7 @@ function HardcoverMenu:getSubMenuItems(book_view)
       end,
       separator = true
     },
-    {
-      text = _("Suggest a book"),
-      callback = function()
-        self.hardcover:showRandomBookDialog()
-      end,
-      separator = true,
-      keep_menu_open = true
-    },
+
     {
       text = _("Settings"),
       sub_item_table_func = function()
@@ -180,18 +159,18 @@ function HardcoverMenu:getSubMenuItems(book_view)
         if new_release then
           new_release_str = " (latest v" .. new_release .. ")"
         end
-        local settings_file = DataStorage:getSettingsDir() .. "/" .. "hardcoversync_settings.lua"
+        local settings_file = DataStorage:getSettingsDir() .. "/" .. "storygraphsync_settings.lua"
 
         UIManager:show(InfoMessage:new {
           text = [[
-Hardcover plugin
+StoryGraph plugin
 v]] .. version .. new_release_str .. [[
 
 
-Updates book progress and status on Hardcover.app
+Updates book progress and status on thestorygraph.com
 
 Project:
-github.com/billiam/hardcoverapp.koplugin
+github.com/billiam/hardcoverapp.koplugin (forked for StoryGraph)
 
 Settings:
 ]] .. settings_file,
@@ -207,43 +186,8 @@ Settings:
   end)
 end
 
-function HardcoverMenu:getVisibilitySubMenuItems()
-  return {
-    {
-      text = _(privacy_labels[HARDCOVER.PRIVACY.PUBLIC]),
-      checked_func = function()
-        return self.state.book_status.privacy_setting_id == HARDCOVER.PRIVACY.PUBLIC
-      end,
-      callback = function()
-        self.hardcover:changeBookVisibility(HARDCOVER.PRIVACY.PUBLIC)
-      end,
-      radio = true,
-    },
-    {
-      text = _(privacy_labels[HARDCOVER.PRIVACY.FOLLOWS]),
-      checked_func = function()
-        return self.state.book_status.privacy_setting_id == HARDCOVER.PRIVACY.FOLLOWS
-      end,
-      callback = function()
-        self.hardcover:changeBookVisibility(HARDCOVER.PRIVACY.FOLLOWS)
-      end,
-      radio = true
-    },
-    {
-      text = _(privacy_labels[HARDCOVER.PRIVACY.PRIVATE]),
-      checked_func = function()
-        return self.state.book_status.privacy_setting_id == HARDCOVER.PRIVACY.PRIVATE
-      end,
-      callback = function()
-        self.hardcover:changeBookVisibility(HARDCOVER.PRIVACY.PRIVATE)
-      end,
-      radio = true
-    },
-  }
-end
-
 function HardcoverMenu:getStatusSubMenuItems()
-  return {
+  local items = {
     {
       text = _(ICON.BOOKMARK .. " Want To Read"),
       enabled_func = function()
@@ -257,6 +201,8 @@ function HardcoverMenu:getStatusSubMenuItems()
           text = "Mark book as Want To Read?",
           ok_callback = function()
             self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.TO_READ)
+            menu_instance.item_table = self:getStatusSubMenuItems()
+            menu_instance:updateItems()
           end,
           no_confirm_callback = function()
             menu_instance:updateItems()
@@ -278,6 +224,8 @@ function HardcoverMenu:getStatusSubMenuItems()
           text = "Mark book as Currently Reading?",
           ok_callback = function()
             self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.READING)
+            menu_instance.item_table = self:getStatusSubMenuItems()
+            menu_instance:updateItems()
           end,
           no_confirm_callback = function()
             menu_instance:updateItems()
@@ -299,6 +247,31 @@ function HardcoverMenu:getStatusSubMenuItems()
           text = "Mark book as Read?",
           ok_callback = function()
             self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.FINISHED)
+            menu_instance.item_table = self:getStatusSubMenuItems()
+            menu_instance:updateItems()
+          end,
+          no_confirm_callback = function()
+            menu_instance:updateItems()
+          end
+        })
+      end,
+      radio = true
+    },
+    {
+      text = _(ICON.PAUSE .. " Paused"),
+      enabled_func = function()
+        return self.enabled
+      end,
+      checked_func = function()
+        return self.state.book_status.status_id == HARDCOVER.STATUS.PAUSED
+      end,
+      callback = function(menu_instance)
+        self.dialog_manager:maybeConfirm({
+          text = "Mark book as Paused?",
+          ok_callback = function()
+            self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.PAUSED)
+            menu_instance.item_table = self:getStatusSubMenuItems()
+            menu_instance:updateItems()
           end,
           no_confirm_callback = function()
             menu_instance:updateItems()
@@ -320,6 +293,8 @@ function HardcoverMenu:getStatusSubMenuItems()
           text = "Mark book as Did Not Finish?",
           ok_callback = function()
             self.cache:updateBookStatus(self.ui.document.file, HARDCOVER.STATUS.DNF)
+            menu_instance.item_table = self:getStatusSubMenuItems()
+            menu_instance:updateItems()
           end,
           no_confirm_callback = function()
             menu_instance:updateItems()
@@ -338,109 +313,74 @@ function HardcoverMenu:getStatusSubMenuItems()
           text = "Remove current book status?",
           ok_callback = function()
             local result = Api:removeRead(self.state.book_status.id)
-            if result and result.id then
+            if result then
               self.state.book_status = {}
+              menu_instance.item_table = self:getStatusSubMenuItems()
               menu_instance:updateItems()
             end
           end
         })
       end,
       keep_menu_open = true,
-      separator = true
     },
     {
-      text_func = function()
-        local reads = self.state.book_status.user_book_reads
-        local current_page = reads and reads[#reads] and reads[#reads].progress_pages or 0
-        local max_pages = self.settings:pages()
-
-        if not max_pages then
-          max_pages = "???"
-        end
-
-        return T(_("Update page: %1 of %2"), current_page, max_pages)
-      end,
-      enabled_func = function()
-        return self.enabled and self.state.book_status.status_id == HARDCOVER.STATUS.READING and self.settings:pages()
-      end,
-      callback = function(menu_instance)
-        local reads = self.state.book_status.user_book_reads
-        local current_read = reads and reads[#reads]
-        local last_hardcover_page = current_read and current_read.progress_pages or 0
-
-        local document_page = self.ui:getCurrentPage()
-        local document_pages = self.ui.document:getPageCount()
-
-        local remote_pages = self.settings:pages()
-        local mapped_page = self.page_mapper:getMappedPage(document_page, document_pages, remote_pages)
-
-        local left_text = "Edition"
-        if last_hardcover_page > 0 then
-          left_text = left_text .. ": was " .. last_hardcover_page
-        end
-
-        local spinner = UpdateDoubleSpinWidget:new {
-          ok_always_enabled = true,
-
-          left_text = left_text,
-          left_value = mapped_page,
-          left_min = 0,
-          left_max = remote_pages,
-          left_step = 1,
-          left_hold_step = 20,
-
-          right_text = "Local page",
-          right_value = document_page,
-          right_min = 0,
-          right_max = document_pages,
-          right_step = 1,
-          right_hold_step = 20,
-
-          update_callback = function(new_edition_page, new_document_page, edition_page_changed)
-            if edition_page_changed then
-              local new_mapped_page = self.page_mapper:getUnmappedPage(new_edition_page, document_pages, remote_pages)
-              return new_edition_page, new_mapped_page
-            else
-              local new_mapped_page = self.page_mapper:getMappedPage(new_document_page, document_pages, remote_pages)
-              return new_mapped_page, new_document_page
-            end
-          end,
-          ok_text = _("Set page"),
-          title_text = _("Set current page"),
-
-          callback = function(edition_page, _document_page)
-            local result
-
-            if current_read then
-              result = Api:updatePage(current_read.id, current_read.edition_id, edition_page,
-                current_read.started_at)
-            else
-              local start_date = os.date("%Y-%m-%d")
-              result = Api:createRead(self.state.book_status.id, self.state.book_status.edition_id, edition_page,
-                start_date)
-            end
-
-            if result then
-              self.state.book_status = result
-              menu_instance:updateItems()
-            else
-
-            end
-          end
-        }
-        UIManager:show(spinner)
-      end,
-      keep_menu_open = true
-    },
-    {
-      text = _("Add a note"),
+      text = _("Owned"),
       enabled_func = function()
         return self.enabled and self.state.book_status.id ~= nil
       end,
+      checked_func = function()
+        return self.state.book_status.is_owned == true
+      end,
+      callback = function(menu_instance)
+        local new_status = not self.state.book_status.is_owned
+        local success = Api:setOwned(self.state.book_status.id, new_status)
+        if success then
+          self.state.book_status.is_owned = new_status
+          menu_instance:updateItems()
+        end
+      end,
+      keep_menu_open = true,
+    },
+    {
+      text = _("Favorite"),
+      enabled_func = function()
+        return self.enabled and self.state.book_status.id ~= nil
+      end,
+      checked_func = function()
+        return self.state.book_status.is_favorite == true
+      end,
+      callback = function(menu_instance)
+        local new_status = not self.state.book_status.is_favorite
+        local success = Api:setFavorite(self.state.book_status.id, new_status)
+        if success then
+          self.state.book_status.is_favorite = new_status
+          menu_instance:updateItems()
+        end
+      end,
+      keep_menu_open = true,
+      separator = true
+    },
+  }
+
+  local status = self.state.book_status.status_id
+
+  -- Update progress: only when NOT read, DNF, removed, or want to read
+  if status and status ~= HARDCOVER.STATUS.FINISHED and status ~= HARDCOVER.STATUS.DNF and status ~= HARDCOVER.STATUS.TO_READ then
+    table.insert(items, {
+      text_func = function()
+        local current_page = self.ui:getCurrentPage()
+        local total_pages = self.ui.document:getPageCount()
+        local current_percent = math.floor((current_page / total_pages) * 100)
+        return T(_("Update progress: %1%"), current_percent)
+      end,
+      enabled_func = function()
+        return self.enabled
+      end,
       callback = function()
-        local reads = self.state.book_status.user_book_reads
-        local current_read = reads and reads[#reads]
-        local current_page = current_read and current_read.progress_pages or 0
+        local current_page = self.ui:getCurrentPage()
+        local total_pages = self.ui.document:getPageCount()
+        local local_percent = math.floor((current_page / total_pages) * 100)
+        local remote_percent = self.state.book_status.last_reached_percent or 0
 
         -- allow premapped page
         self.dialog_manager:journalEntryForm(
@@ -448,76 +388,271 @@ function HardcoverMenu:getStatusSubMenuItems()
           self.ui.document,
           current_page,
           self.settings:pages(),
-          current_page,
+          local_percent,
+          remote_percent,
           "note"
         )
       end,
       keep_menu_open = true
-    },
+    })
+  end
+
+  -- Review: only when read or DNF or can_review
+  if status and (status == HARDCOVER.STATUS.FINISHED or status == HARDCOVER.STATUS.DNF or self.state.book_status.can_review) then
+    table.insert(items, {
+      text = _("Review"),
+      sub_item_table_func = function(menu_instance)
+        return self:getReviewSubMenuItems(menu_instance)
+      end,
+      keep_menu_open = true,
+      separator = true
+    })
+  end
+
+  return items
+end
+
+function HardcoverMenu:getReviewSubMenuItems(menu_instance)
+  if not self.state.review then
+    local existing_review = nil
+    if self.state.book_status.review_url then
+      local InfoMessage = require("ui/widget/infomessage")
+      local info = InfoMessage:new{
+        text = _("Fetching existing review..."),
+      }
+      UIManager:show(info)
+      existing_review = Api:getReview(self.state.book_status.review_url)
+      UIManager:close(info)
+    end
+
+    if existing_review then
+      self.state.review = existing_review
+    else
+      self.state.review = {
+        stars = self.state.book_status.rating or 0,
+        pace = "",
+        driven = "",
+        development = "",
+        loveable = "",
+        diverse = "",
+        flaws = "",
+        themes = "",
+        thoughts = "",
+        mood_ids = {}
+      }
+    end
+  end
+
+  local review = self.state.review
+  local book_id = self.state.book_status.id
+
+  local function make_options_items(key, options, menu_instance)
+    local sub_items = {}
+    for _, opt in ipairs(options) do
+      local display_text
+      if opt == "" then display_text = "Not selected"
+      elseif opt == "n/a" then display_text = "N/A"
+      else display_text = opt:gsub("^%l", string.upper)
+      end
+      table.insert(sub_items, {
+        text = display_text,
+        radio = true,
+        checked_func = function() return review[key] == opt end,
+        callback = function()
+          review[key] = opt
+          if menu_instance and menu_instance.updateItems then
+            menu_instance:updateItems()
+          end
+        end
+      })
+    end
+    return sub_items
+  end
+
+  local function get_display_val(val)
+    if val == "" then return "Not selected" end
+    if val == "n/a" then return "N/A" end
+    return val:gsub("^%l", string.upper)
+  end
+
+  return {
     {
       text_func = function()
-        local text
-        if self.state.book_status.rating then
-          text = "Update rating"
-          local whole_star = math.floor(self.state.book_status.rating)
-          local star_string = string.rep(ICON.STAR, whole_star)
-          if self.state.book_status.rating - whole_star > 0 then
-            star_string = star_string .. ICON.HALF_STAR
-          end
-          text = text .. ": " .. star_string
-        else
-          text = "Set rating"
-        end
-
-        return _(text)
-      end,
-      enabled_func = function()
-        return self.enabled and self.state.book_status.id ~= nil
+        local stars = review.stars or 0
+        local whole = math.floor(stars)
+        local star_string = string.rep(ICON.STAR, whole)
+        if stars - whole >= 0.25 then star_string = star_string .. ICON.HALF_STAR end
+        return "Rating: " .. stars .. " " .. star_string
       end,
       callback = function(menu_instance)
-        local rating = self.state.book_status.rating
-
         local spinner = SpinWidget:new {
-          ok_always_enabled = rating == nil,
-          value = rating or 2.5,
+          value = review.stars or 2.5,
           value_min = 0,
           value_max = 5,
-          value_step = 0.5,
-          value_hold_step = 2,
-          precision = "%.1f",
-          ok_text = _("Save"),
+          value_step = 0.25,
+          value_hold_step = 1,
+          precision = "%.2f",
+          ok_text = _("Set"),
           title_text = _("Set Rating"),
           callback = function(spin)
-            local result = Api:updateRating(self.state.book_status.id, spin.value)
-            if result then
-              self.state.book_status = result
-              menu_instance:updateItems()
-            else
-              self.dialog_magager:showError("Rating could not be saved")
-            end
+            review.stars = spin.value
+            menu_instance:updateItems()
           end
         }
         UIManager:show(spinner)
       end,
-      hold_callback = function(menu_instance)
-        local result = Api:updateRating(self.state.book_status.id, 0)
-        if result then
-          self.state.book_status = result
-          menu_instance:updateItems()
-        end
-      end,
       keep_menu_open = true,
-      separator = true
     },
     {
-      text = _("Set status visibility"),
-      enabled_func = function()
-        return self.enabled and self.state.book_status.id ~= nil
-      end,
-      sub_item_table_func = function()
-        return self:getVisibilitySubMenuItems()
-      end,
+      text = "Moods",
+      sub_item_table_func = function(menu_instance)
+        local moods = {
+          "adventurous", "challenging", "dark", "emotional", "funny",
+          "hopeful", "informative", "inspiring", "lighthearted",
+          "mysterious", "reflective", "relaxing", "sad", "tense"
+        }
+        local sub_items = {}
+        for i, mood in ipairs(moods) do
+          table.insert(sub_items, {
+            text = mood:gsub("^%l", string.upper),
+            checked_func = function()
+              for _, id in ipairs(review.mood_ids) do
+                if id == i then return true end
+              end
+              return false
+            end,
+            callback = function()
+              local found = false
+              for idx, id in ipairs(review.mood_ids) do
+                if id == i then
+                  table.remove(review.mood_ids, idx)
+                  found = true
+                  break
+                end
+              end
+              if not found then
+                table.insert(review.mood_ids, i)
+              end
+              if menu_instance then menu_instance:updateItems() end
+            end,
+            keep_menu_open = true,
+          })
+        end
+        return sub_items
+      end
     },
+    {
+      text_func = function() return "Pace: " .. get_display_val(review.pace) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("pace", {"", "slow", "medium", "fast", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text_func = function() return "Driven by: " .. get_display_val(review.driven) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("driven", {"", "plot", "character", "a mix", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text_func = function() return "Character Development: " .. get_display_val(review.development) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("development", {"", "yes", "no", "it's complicated", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text_func = function() return "Loveable characters: " .. get_display_val(review.loveable) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("loveable", {"", "yes", "no", "it's complicated", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text_func = function() return "Diverse cast: " .. get_display_val(review.diverse) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("diverse", {"", "yes", "no", "it's complicated", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text_func = function() return "Character flaws: " .. get_display_val(review.flaws) end,
+      sub_item_table_func = function(menu_instance)
+        return make_options_items("flaws", {"", "yes", "no", "it's complicated", "n/a"}, menu_instance)
+      end
+    },
+    {
+      text = "Themes",
+      callback = function(menu_instance)
+        local MultiInput = require("ui/widget/multiinputdialog")
+        local themes_dialog = MultiInput:new {
+          title = "Themes (comma separated)",
+          fields = {
+            {
+              text = review.themes,
+            }
+          },
+          buttons = {
+            {
+              text = _("Cancel"),
+              id = "close",
+            },
+            {
+              text = _("Set"),
+              callback = function(dialog)
+                review.themes = dialog:getFields()[1]
+                menu_instance:updateItems()
+                UIManager:close(dialog)
+              end
+            }
+          }
+        }
+        UIManager:show(themes_dialog)
+      end,
+      keep_menu_open = true,
+    },
+    {
+      text = "Thoughts",
+      callback = function(inner_menu)
+        local m = inner_menu or menu_instance
+        local MultiInput = require("ui/widget/multiinputdialog")
+        local thoughts_dialog = MultiInput:new {
+          title = "Your thoughts",
+          fields = {
+            {
+              text = review.thoughts,
+              input_type = "text",
+            }
+          },
+          buttons = {
+            {
+              text = _("Cancel"),
+              id = "close",
+            },
+            {
+              text = _("Set"),
+              callback = function(dialog)
+                review.thoughts = dialog:getFields()[1]
+                if m then m:updateItems() end
+                UIManager:close(dialog)
+              end
+            }
+          }
+        }
+        UIManager:show(thoughts_dialog)
+      end,
+      keep_menu_open = true,
+    },
+    {
+      text = "Save Review",
+      callback = function(menu_instance)
+        local success = Api:saveReview(book_id, review, self.state.book_status.review_url)
+        if success then
+          self.cache:cacheUserBook()
+          UIManager:show(InfoMessage:new { text = "Review saved!" })
+          self.state.review = nil -- Clear temp state
+          menu_instance:onClose()
+        else
+          UIManager:show(InfoMessage:new { text = "Failed to save review" })
+        end
+      end
+    }
   }
 end
 
@@ -610,16 +745,7 @@ function HardcoverMenu:getSettingsSubMenuItems()
         self.settings:updateSetting(SETTING.LINK_BY_ISBN, not setting)
       end
     },
-    {
-      text = "Automatically link by Hardcover identifiers",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.LINK_BY_HARDCOVER) == true
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.LINK_BY_HARDCOVER) == true
-        self.settings:updateSetting(SETTING.LINK_BY_HARDCOVER, not setting)
-      end
-    },
+
     {
       text = "Automatically link by title and author",
       checked_func = function()
@@ -688,6 +814,87 @@ function HardcoverMenu:getSettingsSubMenuItems()
 May improve compatibility for some versions of KOReader]],
         })
       end
+    },
+    {
+      text = "Include location info in regular notes",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
+        self.settings:updateSetting(SETTING.INCLUDE_LOCATION_IN_NOTES, not setting)
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[Automatically append Chapter, Page, and % info to your regular notes. 
+          
+Quotes always include this info.]],
+        })
+      end
+    },
+    {
+      text = _("StoryGraph Session Cookie"),
+      callback = function()
+        local MultiInputDialog = require("ui/widget/multiinputdialog")
+        local dialog
+        dialog = MultiInputDialog:new {
+          title = _("StoryGraph Session Cookie"),
+          fields = {
+            {
+              text = self.settings:readSetting(SETTING.SESSION_COOKIE) or "",
+            },
+          },
+          buttons = {
+            {
+              text = _("Cancel"),
+              callback = function()
+                UIManager:close(dialog)
+              end,
+            },
+            {
+              text = _("Save"),
+              callback = function()
+                local value = dialog:getFields()[1]:getText()
+                self.settings:updateSetting(SETTING.SESSION_COOKIE, value)
+                UIManager:close(dialog)
+              end,
+            },
+          },
+        }
+        UIManager:show(dialog)
+      end,
+    },
+    {
+      text = _("StoryGraph Remember Token"),
+      callback = function()
+        local MultiInputDialog = require("ui/widget/multiinputdialog")
+        local dialog
+        dialog = MultiInputDialog:new {
+          title = _("StoryGraph Remember Token"),
+          fields = {
+            {
+              text = self.settings:readSetting(SETTING.REMEMBER_TOKEN) or "",
+            },
+          },
+          buttons = {
+            {
+              text = _("Cancel"),
+              callback = function()
+                UIManager:close(dialog)
+              end,
+            },
+            {
+              text = _("Save"),
+              callback = function()
+                local value = dialog:getFields()[1]:getText()
+                self.settings:updateSetting(SETTING.REMEMBER_TOKEN, value)
+                UIManager:close(dialog)
+              end,
+            },
+          },
+        }
+        UIManager:show(dialog)
+      end,
     }
   }
 end

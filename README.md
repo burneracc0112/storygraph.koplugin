@@ -1,163 +1,53 @@
-# Hardcover.app for KOReader
+# StoryGraph for KOReader
 
-A KOReader plugin to update your [Hardcover.app](https://hardcover.app) reading status
+A KOReader plugin to synchronize your reading progress, notes, and status to [The StoryGraph](https://thestorygraph.com).
+
+> [!NOTE]
+> This plugin is a fork of the [Hardcover.app for KOReader](https://github.com/Billiam/hardcoverapp.koplugin) by [Billiam](https://github.com/Billiam). It has been redesigned to support StoryGraph.
+
+> [!CAUTION]
+> **Disclaimer**: This plugin uses an unofficial API based on session cookies. Because of this, it is inherently brittle and may break if StoryGraph updates their website or cookie structure. If sync stops working, please ensure you are using the latest version of the plugin and try re-fetching your session tokens.
+
+> [!IMPORTANT]
+> **Compatibility**: This plugin **cannot** be installed simultaneously with the original Hardcover plugin. 
+> 
+> **Rationale**: I've kept the internal folder structure and code namespace identical to the original repository. This was done to ensure that any upstream improvements, bug fixes, or new features from the original Hardcover plugin can be easily merged into this fork.
 
 ## Installation
 
-1. Download and extract the latest release: https://github.com/Billiam/hardcoverapp.koplugin/releases/latest
-2. Rename `hardcover_config.example.lua` to `hardcover_config.lua`
-3. Fetch your API key from https://hardcover.app/account/api (just the part after `Bearer `)
-4. Add your API key to the `token` field in `hardcover_config.lua`, between the `''` quotes. For example:
-   `token = 'abcde...fghij'`
-5. Install plugin by copying the `hardcoverapp.koplugin` folder to the KOReader plugins folder on your device
+1. Download the latest release and extract it to your KOReader `plugins/` folder.
+2. Rename `hardcover_config.example.lua` to `hardcover_config.lua`.
+3. **Authentication**:
+   - Log in to [thestorygraph.com](https://thestorygraph.com) in your browser.
+   - Open your browser's Developer Tools (F12) -> Application/Storage -> Cookies.
+   - Copy the value of the `_story_graph_session` cookie and paste it into the `session_cookie` field in `hardcover_config.lua`.
+   - Copy the value of the `remember_user_token` cookie and paste it into the `remember_user_token` field in `hardcover_config.lua`.
 
 ## Usage
 
-The Hardcover plugin's menu can be found in the Bookmark top menu when a document is active.
+The StoryGraph menu is located in the **Bookmark** top menu when a document is active.
 
-![Hardcover plugin main menu with the following menu items: the currently linked book (Frankenstein), an option to change the edition specific edition, a checkbox to Automatically track progress, Update status (which opens a submenu), Settings (which opens a submenu), and About](https://github.com/user-attachments/assets/0fd8f6fb-3a61-471f-9450-9a0b3dadc9d1)
+### Updating Progress & Notes
+The plugin provides a unified **"Update progress: [XX]%"** menu item. This opens a powerful dialog where you can:
+- **Set Progress**: Tap the progress button to open a native picker showing both your **KOReader** and **StoryGraph** synced percentages.
+- **Add a Note**: Write your thoughts directly in the note field.
+- **Set Date**: Tap the date button to use a beautiful side-by-side **Year-Month-Day** picker.
+- **Location Context**: By default, quotes (sent via the highlight menu) automatically include your current **Chapter, Page, and Percentage**. You can enable this for regular notes in the settings.
 
-### Linking a book
+### Linking a Book
+Before updates can be sent, the plugin needs to link your document to a StoryGraph book.
+- Use **"Link book"** to search by metadata or ISBN.
+- Use **"Change edition"** to select the specific version (Physical, Digital, etc.) that matches your document.
 
-Before updates can be sent to Hardcover, the plugin needs to know which Hardcover book and/or edition your current
-document represents.
-
-You can search for a book by selecting `Link book` from the Hardcover menu. If any books can be found based
-on your book's metadata, these will be displayed.
-
-![A dismissable window titled "Select book" with a search button displayed as a magnifying glass in the upper left corner, and a close button on the right. A list of 14 possible books is displayed below this, with buttons to change result pages. The book title ande author are displayed if available, as well as the number of reads by hardcover users and the number of pages if available. Some books display cover images](https://github.com/user-attachments/assets/99d16ef0-6dda-41d8-bfdc-32c97ae09d87)
-
-If you cannot find the book you're looking for, you can tap the magnifying glass icon in the upper left corner and
-begin a manual search.
-
-![An input dialog titled "New Search" with the text "Frankenstein Mary Shelley". Behind the dialog, a recent book search result dialog appears with two books](https://github.com/user-attachments/assets/73619448-9821-410a-901f-d8fc61185dd3)
-
-Selecting a Hardcover book or edition will link it to your current document, but will not automatically update your
-reading status on Hardcover. This can be done manually from the [update status](#updating-reading-status) menu, or using
-the [track progress](#automatically-track-progress) option.
-
-To clear the currently linked book, tap and hold to the `Linked book` menu item for a moment.
-
-After selecting a book, you can set a specific edition using the `Change edition` menu item. This will present a list
-of available editions for the currently linked book. No manual edition search is available
-
-### Updating reading status
-
-![A menu to update book status containing: a set of radio buttons for the current book status (Want to read, currently reading, read and did not finish), an item to unset the current status. The following section has an item to update the current page (displaying page 154 of 353), add a note, update rating (displaying the current rating of 4.5 stars), and an item to update the status privacy settings which open in a submenu](https://github.com/user-attachments/assets/55b33a0a-bda8-4ec9-918d-0409266abe3b)
-
-To change your book status (Want To Read, Currently Reading, Read, Did Not Finish) on Hardcover, you open the
-`Update status` menu after [linking your book](#linking-a-book). You can also remove the book from your Hardcover
-library using the `Remove` menu item.
-
-From this menu you can also update your current page and book rating, and add a new journal entry
-
-Tap and hold the book rating menu item to clear your current rating.
-
-### Add a journal entry quote
-
-Selecting text to quote:
-
-![Book text with two sentences highlighted. KOReader's highlight menu popup is displayed in the center with an option at the end for Hardcover quote](https://github.com/user-attachments/assets/5dba19a4-f72a-4894-820c-0cfdcc55bf68)
-
-![A form window titled "Create journal entry". The previously selected text appears in an input field at the top. Below that is a toggle for whether the journal entry should be a note or a quote. A button to change the journal edition follows, and one to change the current page. Below those, a toggle to change the journal entry privay with the options Public, Follows and Private. Lastly are two input fields to set journal entry tags and spoiler tags respectively, and then buttons to save the entry or close the window](https://github.com/user-attachments/assets/c386f153-330f-4e1f-afa1-12fdf48a1216)
-
-After selecting document text in a linked document, choose `Hardcover quote` from the highlight menu to display the
-journal entry form, prefilled with the selected text and page.
-
-### Automatically track progress
-
-Automatic progress tracking is optional: book status and reading progress can instead be
-[updated manually](#update-reading-status) from the `Update status` menu.
-
-When track progress is enabled for a book which has been linked ([manually](#linking-a-book)
-or [automatically](#automatic-linking)),
-page and status updates will automatically be sent to Hardcover for some reading events:
-
-* Your current read will be updated when paging through the document, no more than once per minute. This frequency
-  [can be configured](#track-progress-frequency).
-* When marking a book as finished from the file browser, the book will be marked as finished in Hardcover
-* When reaching the end of the document, if the KOReader settings automatically mark the document as finished, the
-  book will be marked as finished in Hardcover. If the KOReader setting instead opens a popup, the book status will be
-  checked
-  ten seconds later, and if the book has been marked finished, it will be marked as finish in Hardcover.
-
-For all documents, but in particular for reflowable documents (like epubs), the current page in your reader may not
-match that of the original published book.
-
-Some documents contain information allowing the current page to map to the published book's pages. For these documents,
-the mapped page will be sent to Hardcover if possible.
-
-For documents without these, your progress will be converted to a percentage of the number of pages in the original
-published book, with a calculation like:
-`round((document_page_number / document_total_pages) * hardcover_edition_total_pages)`.
-
-In both cases, this may not exactly match the page of the published document, and can even be far off if there
-are large differences in the total pages.
-
-### Suggest a book
-
-The suggest a book menu item will display up to 10 books from your Want To Read list in random order. Selecting one of
-the books in the dialog will start a file search for that book on your device, based on the title. The plugin does not
-know which books you have or do not have on your device.
-
-The selected books/order are preserved when reopening the dialog (until KOReader is restarted), but you can use the
-refresh button in the upper left corner to get a new list of 10 books.
-
-![Suggest a book dialog displaying several books. There is a refresh icon in the upper left corner](https://github.com/user-attachments/assets/2564e0f1-2c62-4463-957f-421a47d792d6)
+### Automatically Track Progress
+When enabled, the plugin will periodically sync your progress to StoryGraph:
+- Updates are sent when paging, no more than once per minute (configurable).
+- When reaching the end of the document, the book is automatically marked as "Read" on StoryGraph.
+- For EPUBs, the plugin converts your local progress to a percentage based on the StoryGraph edition's total pages.
 
 ## Settings
 
-![A settings menu containing the following options: Checkboxes for Automatically link by ISBN, Automatically link by Hardcover identifiers and Automatically link by title and author. Below that is an item to change the Track progress frequency showing the current setting (1 minute), and a checkbox to Always track progress by default.](https://github.com/user-attachments/assets/dc8a397b-f36d-49da-b880-d04d47219ed0)
-
-### Automatic linking
-
-With automatic linking enabled, the plugin will attempt to find the matching book and/or edition on Hardcover
-when a new document is opened, if no book has been linked already. These options are off by default.
-
-* **Automatically link by ISBN**: If the document contains ISBN or ISBN13 metadata, try to find a matching edition for
-  that ISBN
-* **Automatically link by Hardcover**: If the document metadata contains a `hardcover` identifier (with a URL slug for
-  the book)
-  or a `hardcover-edition` with an edition ID, try to find the matching book or edition.
-  (see: [RobBrazier/calibre-plugins](https://github.com/RobBrazier/calibre-plugins/tree/main/plugins/hardcover))
-* **Automatically link by title**: If the document metadata contains a title, choose the first book returned from
-  hardcover search results for that title and document author (if available).
-
-### Track progress settings
-
-By default, (when enabled) updates will be sent to hardcover at a frequency you can select, no more often than once per
-minute. If you don't need updates this frequently, and to preserve battery, you can decrease this frequency further.
-
-You can also choose to update based on your percentage progress through a book. With this option, an update will be sent
-when you cross a percentage threshold (for example, every 10% completed).
-
-### Always track progress by default
-
-When always track progress is enabled, new documents will have the [track progress](#automatically-track-progress)
-option enabled automatically. You can still turn off `Track progress` on a per-document basis when this setting is
-enabled.
-
-Books still must be linked (manually or automatically) to send updates to Hardcover.
-
-### Enable wifi on demand
-
-On some devices, wifi can be enabled on demand without interruption. When this feature is enabled, wifi will be enabled
-automatically before some types of background API requests (namely updating the initial application cache, and updating
-your reading progress), and then disabled afterward.
-
-This can improve battery life significantly on some devices, particularly with infrequent page updates.
-
-This feature is not used for all network requests. If wifi has not been manually enabled the following will not work:
-
-* fetching or updating your reading status manually
-* manually updating your reading progress from the menu
-
-### Confirm changes to book read status
-
-By default, changes to a book's read status (Want to Read, Did Not Finish, etc) will immediately update in Hardcover as
-soon as you press them. Enable this setting to display a confirmation prompt before those changes are sent.
-
-### Compatibility mode
-
-When enabled, book and edition searches will be displayed in a simplified list with minimal data. This mode is the
-default for KOReader versions prior to v2024.07
+- **Include location info in regular notes**: Automatically append Chapter, Page, and % info to your regular notes.
+- **Automatically link by ISBN/Title**: Attempt to find matching books on StoryGraph automatically when opening a new document.
+- **Enable wifi on demand**: Briefly enable wifi for background syncs to preserve battery life.
+- **Confirm changes**: Prompt for confirmation before changing a book's status (e.g., Want to Read -> Read).

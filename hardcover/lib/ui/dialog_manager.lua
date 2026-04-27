@@ -12,6 +12,7 @@ local Book = require("hardcover/lib/book")
 local User = require("hardcover/lib/user")
 
 local HARDCOVER = require("hardcover/lib/constants/hardcover")
+local SETTING = require("hardcover/lib/constants/settings")
 
 local JournalDialog = require("hardcover/lib/ui/journal_dialog")
 local SearchDialog = require("hardcover/lib/ui/search_dialog")
@@ -24,37 +25,12 @@ function DialogManager:new(o)
 end
 
 local function mapJournalData(data)
-  local result = {
+  return {
     book_id = data.book_id,
-    event = data.event_type,
     entry = data.text,
-    edition_id = data.edition_id,
-    privacy_setting_id = data.privacy_setting_id,
-    tags = json.util.InitArray({})
+    progress = data.progress,
+    date = data.date
   }
-
-  if #data.tags > 0 then
-    for _, tag in ipairs(data.tags) do
-      table.insert(result.tags, { category = HARDCOVER.CATEGORY.TAG, tag = tag, spoiler = false })
-    end
-  end
-  if #data.hidden_tags > 0 then
-    for _, tag in ipairs(data.hidden_tags) do
-      table.insert(result.tags, { category = HARDCOVER.CATEGORY.TAG, tag = tag, spoiler = true })
-    end
-  end
-
-  if data.page then
-    result.metadata = {
-      position = {
-        type = "pages",
-        value = data.page,
-        possible = data.pages
-      }
-    }
-  end
-
-  return result
 end
 
 function DialogManager:buildSearchDialog(title, items, active_item, book_callback, search_callback, search)
@@ -157,31 +133,42 @@ function DialogManager:updateRandomBooks(books)
   self.search_dialog:setItems(self.search_dialog.title, books)
 end
 
-function DialogManager:journalEntryForm(text, document, page, remote_pages, mapped_page, event_type)
+function DialogManager:journalEntryForm(text, document, page, remote_pages, initial_percent, remote_percent, event_type)
   local settings = self.settings:readBookSettings(document.file) or {}
-  local edition_id = settings.edition_id
-  local edition_format = settings.edition_format
+  local total_pages = document:getPageCount()
 
-  if not edition_id then
-    local edition = Api:findDefaultEdition(settings.book_id, User:getId())
-    if edition then
-      edition_id = edition.id
-      edition_format = Book:editionFormatName(edition.edition_format, edition.reading_format_id)
-      remote_pages = edition.pages
+  if not initial_percent then
+    initial_percent = math.floor((page / total_pages) * 100)
+  end
+
+  -- Augment text with location info
+  local include_location = (event_type == "quote") or (self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true)
+
+  if include_location then
+    local chapter
+    if self.ui.toc and self.ui.toc.getTocTitleOfCurrentPage then
+      chapter = self.ui.toc:getTocTitleOfCurrentPage()
+    elseif self.ui.toc and self.ui.toc.getChapterName then
+      chapter = self.ui.toc:getChapterName()
+    end
+
+    local location_info = string.format("\n\n(Chapter: %s, Page %d of %d, %d%%)", 
+      chapter or "N/A", page, total_pages, initial_percent)
+
+    if text and text ~= "" then
+      text = text .. location_info
+    else
+      text = location_info
     end
   end
 
-  mapped_page = mapped_page or self.page_mapper:getMappedPage(page, document:getPageCount(), remote_pages)
   local wifi_was_off = false
   local dialog
   dialog = JournalDialog:new {
     input = text,
-    event_type = event_type or "note",
     book_id = settings.book_id,
-    edition_id = edition_id,
-    edition_format = edition_format,
-    page = mapped_page,
-    pages = remote_pages,
+    page = initial_percent,
+    remote_page = remote_percent,
     save_dialog_callback = function(book_data)
       local api_data = mapJournalData(book_data)
       local result = Api:createJournalEntry(api_data)
@@ -196,32 +183,10 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, mapp
           end
         end)
 
-        return true, _(event_type .. " saved")
+        return true, _("StoryGraph progress updated")
       else
-        return false, _(event_type .. " could not be saved")
+        return false, _("Failed to update StoryGraph")
       end
-    end,
-    select_edition_callback = function()
-      -- TODO: could be moved into child dialog but needs access to build dialog, which needs dialog again
-      dialog:onCloseKeyboard()
-
-      local editions = Api:findEditions(self.settings:getLinkedBookId(), User:getId())
-      self:buildSearchDialog(
-        "Select edition",
-        editions,
-        { edition_id = dialog.edition_id },
-        function(edition)
-          if not edition then
-            return
-          end
-
-          dialog:setEdition(
-            edition.edition_id,
-            Book:editionFormatName(edition.edition_format, edition.reading_format_id),
-            edition.pages
-          )
-        end
-      )
     end,
 
     close_callback = function()

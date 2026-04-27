@@ -33,7 +33,7 @@ local HARDCOVER = require("hardcover/lib/constants/hardcover")
 local SETTING = require("hardcover/lib/constants/settings")
 
 local HardcoverApp = WidgetContainer:extend {
-  name = "hardcoverappsync",
+  name = "storygraph",
   is_doc_only = false,
   state = nil,
   settings = nil,
@@ -41,43 +41,38 @@ local HardcoverApp = WidgetContainer:extend {
   enabled = true
 }
 
-local HIGHLIGHT_MENU_NAME = "13_0_make_hardcover_highlight_item"
+local HIGHLIGHT_MENU_NAME = "13_0_make_storygraph_highlight_item"
 
 function HardcoverApp:onDispatcherRegisterActions()
-  Dispatcher:registerAction("hardcover_link", {
+  Dispatcher:registerAction("storygraph_link", {
     category = "none",
-    event = "HardcoverLink",
-    title = _("Hardcover: Link book"),
+    event = "StoryGraphLink",
+    title = _("StoryGraph: Link book"),
     general = true,
   })
 
-  Dispatcher:registerAction("hardcover_track", {
+  Dispatcher:registerAction("storygraph_track", {
     category = "none",
-    event = "HardcoverTrack",
-    title = _("Hardcover: Track progress"),
+    event = "StoryGraphTrack",
+    title = _("StoryGraph: Track progress"),
     general = true,
   })
 
-  Dispatcher:registerAction("hardcover_stop_track", {
+  Dispatcher:registerAction("storygraph_stop_track", {
     category = "none",
-    event = "HardcoverStopTrack",
-    title = _("Hardcover: Stop tracking progress"),
+    event = "StoryGraphStopTrack",
+    title = _("StoryGraph: Stop tracking progress"),
     general = true,
   })
 
-  Dispatcher:registerAction("hardcover_update_progress", {
+  Dispatcher:registerAction("storygraph_update_progress", {
     category = "none",
-    event = "HardcoverUpdateProgress",
-    title = _("Hardcover: Update progress"),
+    event = "StoryGraphUpdateProgress",
+    title = _("StoryGraph: Update progress"),
     general = true,
   })
 
-  Dispatcher:registerAction("hardcover_random_books", {
-    category = "none",
-    event = "HardcoverSuggestBook",
-    title = _("Hardcover: Suggest a book"),
-    general = true,
-  })
+
 end
 
 function HardcoverApp:init()
@@ -90,21 +85,22 @@ function HardcoverApp:init()
   }
   --logger.warn("HARDCOVER app init")
   self.settings = HardcoverSettings:new(
-    ("%s/%s"):format(DataStorage:getSettingsDir(), "hardcoversync_settings.lua"),
+    ("%s/%s"):format(DataStorage:getSettingsDir(), "storygraphsync_settings.lua"),
     self.ui
   )
   self.settings:subscribe(function(field, change, original_value) self:onSettingsChanged(field, change, original_value) end)
 
   User.settings = self.settings
+  Api.settings = self.settings
   Api.on_error = function(err)
     if not err or not self.enabled then
       return
     end
 
-    if err == HARDCOVER.ERROR.TOKEN or _t.dig(err, "extensions", "code") == HARDCOVER.ERROR.JWT or (err.message and string.find(err.message, "JWT")) then
+    if err == "Unauthorized" or (err.message and string.find(err.message, "login")) then
       self:disable()
       UIManager:show(InfoMessage:new {
-        text = "Your Hardcover API key is not valid or has expired. Please update it and restart",
+        text = "Your StoryGraph session cookie is not valid or has expired. Please update it.",
         icon = "notice-warning",
       })
     end
@@ -112,7 +108,8 @@ function HardcoverApp:init()
 
   self.cache = Cache:new {
     settings = self.settings,
-    state = self.state
+    state = self.state,
+    ui = self.ui
   }
   self.page_mapper = PageMapper:new {
     state = self.state,
@@ -167,14 +164,40 @@ end
 --   page_number: The local page number
 --   remote_page (optional): The mapped page in the linked book edition
 --   note_type: one of "quote" or "note"
-function HardcoverApp:onHardcoverNote(note_params)
-  -- open journal dialog
+function HardcoverApp:onStoryGraphNote(note_params)
+  -- Fetch latest progress from API for quotes/notes
+  local book_id = self.settings:getLinkedBookId()
+  local remote_percent = self.state.book_status.last_reached_percent or 0
+  
+  if book_id then
+    self.wifi:wifiPrompt(function()
+      local latest_status = Api:findUserBook(book_id, User:getId())
+      if latest_status and latest_status.last_reached_percent then
+        remote_percent = latest_status.last_reached_percent
+        self.state.book_status = latest_status
+      end
+      
+      self.dialog_manager:journalEntryForm(
+        note_params.text,
+        self.ui.document,
+        note_params.page_number,
+        self.settings:pages(),
+        note_params.remote_page or nil,
+        remote_percent,
+        note_params.note_type or "quote"
+      )
+    end)
+    return
+  end
+
+  -- Fallback if no book linked
   self.dialog_manager:journalEntryForm(
     note_params.text,
     self.ui.document,
     note_params.page_number,
     self.settings:pages(),
-    note_params.remote_page,
+    note_params.remote_page or nil,
+    remote_percent,
     note_params.note_type or "quote"
   )
 end
@@ -187,7 +210,7 @@ function HardcoverApp:disable()
   self:registerHighlight()
 end
 
-function HardcoverApp:onHardcoverLink()
+function HardcoverApp:onStoryGraphLink()
   self.hardcover:showLinkBookDialog(false, function(book)
     UIManager:show(Notification:new {
       text = _("Linked to: " .. book.title),
@@ -195,7 +218,7 @@ function HardcoverApp:onHardcoverLink()
   end)
 end
 
-function HardcoverApp:onHardcoverTrack()
+function HardcoverApp:onStoryGraphTrack()
   self.settings:setSync(true)
   UIManager:nextTick(function()
     UIManager:show(Notification:new {
@@ -204,14 +227,14 @@ function HardcoverApp:onHardcoverTrack()
   end)
 end
 
-function HardcoverApp:onHardcoverStopTrack()
+function HardcoverApp:onStoryGraphStopTrack()
   self.settings:setSync(false)
   UIManager:show(Notification:new {
     text = _("Progress tracking disabled")
   })
 end
 
-function HardcoverApp:onHardcoverUpdateProgress()
+function HardcoverApp:onStoryGraphUpdateProgress()
   if self.ui.document and self.settings:bookLinked() then
     self:updatePageNow(function(result)
       if result then
@@ -239,10 +262,6 @@ function HardcoverApp:onHardcoverUpdateProgress()
   end
 end
 
-function HardcoverApp:onHardcoverSuggestBook()
-  self.hardcover:showRandomBookDialog()
-end
-
 function HardcoverApp:onSettingsChanged(field, change, original_value)
   if field == SETTING.BOOKS then
     local book_settings = change.config
@@ -262,15 +281,15 @@ function HardcoverApp:onSettingsChanged(field, change, original_value)
   elseif field == SETTING.TRACK_METHOD then
     self:cancelPendingUpdates()
     self:initializePageUpdate()
-  elseif field == SETTING.LINK_BY_HARDCOVER or field == SETTING.LINK_BY_ISBN or field == SETTING.LINK_BY_TITLE then
+  elseif field == SETTING.LINK_BY_ISBN or field == SETTING.LINK_BY_TITLE then
     if change then
       self.hardcover:tryAutolink()
     end
   end
 end
 
-function HardcoverApp:_handlePageUpdate(filename, mapped_page, immediate, callback)
-  --logger.warn("HARDCOVER: Throttled page update", mapped_page)
+function HardcoverApp:_handlePageUpdate(filename, percentage, immediate, callback)
+  --logger.warn("HARDCOVER: Throttled progress update", percentage)
   self.page_update_pending = false
 
   if not self:syncFileUpdates(filename) then
@@ -289,7 +308,7 @@ function HardcoverApp:_handlePageUpdate(filename, mapped_page, immediate, callba
 
   local immediate_update = function()
     self.wifi:withWifi(function()
-      local result = Api:updatePage(current_read.id, current_read.edition_id, mapped_page, current_read.started_at)
+      local result = Api:updatePage(current_read.id, current_read.edition_id, percentage, current_read.started_at)
       if result then
         self.state.book_status = result
       end
@@ -333,9 +352,10 @@ function HardcoverApp:pageUpdateEvent(page)
   local remote_pages = self.settings:pages()
 
   if self.settings:trackByTime() then
-    local mapped_page = self.page_mapper:getMappedPage(page, document_pages, remote_pages)
+    local decimal_percent = self.page_mapper:getRemotePagePercent(page, document_pages, remote_pages)
+    local percentage = math.floor(decimal_percent * 100)
 
-    self:_throttledHandlePageUpdate(self.ui.document.file, mapped_page)
+    self:_throttledHandlePageUpdate(self.ui.document.file, percentage)
     self.page_update_pending = true
   elseif self.settings:trackByProgress() and self.state.last_page then
     local percent_interval = self.settings:trackPercentageInterval()
@@ -356,7 +376,8 @@ function HardcoverApp:pageUpdateEvent(page)
     local current_compare = math.floor(current_percent * 100 / percent_interval)
 
     if last_compare ~= current_compare then
-      self:_handlePageUpdate(self.ui.document.file, mapped_page)
+      local percentage = math.floor(current_percent * 100)
+      self:_handlePageUpdate(self.ui.document.file, percentage)
     end
   end
 end
@@ -429,12 +450,13 @@ function HardcoverApp:onResume()
 end
 
 function HardcoverApp:updatePageNow(callback)
-  local mapped_page = self.page_mapper:getMappedPage(
+  local decimal_percent = self.page_mapper:getRemotePagePercent(
     self.state.page,
     self.ui.document:getPageCount(),
     self.settings:pages()
   )
-  self:_handlePageUpdate(self.ui.document.file, mapped_page, true, callback)
+  local percentage = math.floor(decimal_percent * 100)
+  self:_handlePageUpdate(self.ui.document.file, percentage, true, callback)
 end
 
 function HardcoverApp:onNetworkDisconnecting()
@@ -492,7 +514,7 @@ function HardcoverApp:onEndOfBook()
   local marker = function()
     local book_id = self.settings:readBookSetting(file_path, "book_id")
     local user_book = Api:findUserBook(book_id, user_id) or {}
-    self.cache:updateBookStatus(file_path, HARDCOVER.STATUS.FINISHED, user_book.privacy_setting_id)
+    self.cache:updateBookStatus(file_path, HARDCOVER.STATUS.FINISHED)
   end
 
   if mark_read == 'later' then
@@ -514,7 +536,7 @@ function HardcoverApp:onEndOfBook()
     self.wifi:withWifi(function()
       marker()
       UIManager:show(InfoMessage:new {
-        text = _("Hardcover status saved"),
+        text = _("StoryGraph status saved"),
         timeout = 2
       })
     end)
@@ -541,10 +563,10 @@ function HardcoverApp:onDocSettingsItemsChanged(file, doc_settings)
     local book_id = self.settings:readBookSetting(file, "book_id")
     local user_book = Api:findUserBook(book_id, User:getId()) or {}
     self.wifi:withWifi(function()
-      self.cache:updateBookStatus(file, status, user_book.privacy_setting_id)
+      self.cache:updateBookStatus(file, status)
 
       UIManager:show(InfoMessage:new {
-        text = _("Hardcover status saved"),
+        text = _("StoryGraph status saved"),
         timeout = 2
       })
     end)
@@ -623,7 +645,7 @@ function HardcoverApp:startReadCache()
     function()
       if NetworkManager:isConnected() then
         UIManager:show(Notification:new {
-          text = _("Failed to fetch book information from Hardcover"),
+          text = _("Failed to fetch book information from StoryGraph"),
         })
       end
     end)
@@ -636,7 +658,7 @@ function HardcoverApp:registerHighlight()
     self.ui.highlight:addToHighlightDialog(HIGHLIGHT_MENU_NAME, function(this)
       return {
         text_func = function()
-          return _("Hardcover quote")
+          return _("StoryGraph quote")
         end,
         callback = function()
           local selected_text = this.selected_text
@@ -645,7 +667,7 @@ function HardcoverApp:registerHighlight()
             raw_page = self.view.document:getPageFromXPointer(selected_text.pos0)
           end
           -- open journal dialog
-          self:onHardcoverNote({
+          self:onStoryGraphNote({
             text = selected_text.text,
             page_number = raw_page,
             note_type = "quote"
@@ -659,7 +681,7 @@ function HardcoverApp:registerHighlight()
 end
 
 function HardcoverApp:addToMainMenu(menu_items)
-  menu_items.hardcover = self.menu:mainMenu()
+  menu_items.storygraph = self.menu:mainMenu()
 end
 
 return HardcoverApp

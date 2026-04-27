@@ -416,7 +416,11 @@ function ListMenuItem:update()
         end
       else
         if pages then
-          pages_str = T(N_("1 page", "%1 pages", pages), pages)
+          if type(pages) == "string" then
+            pages_str = pages
+          else
+            pages_str = T(N_("1 page", "%1 pages", pages), pages)
+          end
         end
       end
 

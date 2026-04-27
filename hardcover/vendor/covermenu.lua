@@ -180,6 +180,8 @@ function CoverMenu:updateItems(select_number, no_recalculate_dimen)
 
             item.entry.cover_bb = RenderImage:renderImageData(content, #content, false, item.cover_w, item.cover_h)
             item.entry.cover_bb:setAllocated(1)
+            item.entry.cover_w = item.entry.cover_bb:getWidth()
+            item.entry.cover_h = item.entry.cover_bb:getHeight()
             item:update()
 
             self.show_parent.dithered = item._has_cover_image

@@ -8,17 +8,25 @@ function Cache:new(o)
   return setmetatable(o, self)
 end
 
-function Cache:updateBookStatus(filename, status, privacy_setting_id)
+function Cache:updateBookStatus(filename, status)
   local settings = self.settings:readBookSettings(filename)
   local book_id = settings.book_id
   local edition_id = settings.edition_id
 
-  self.state.book_status = Api:updateUserBook(book_id, status, privacy_setting_id, edition_id) or {}
+  self.state.book_status = Api:updateUserBook(book_id, status, edition_id) or {}
 end
 
 function Cache:cacheUserBook()
+  local filename = self.ui.document.file
   local status, errors = Api:findUserBook(self.settings:getLinkedBookId(), User:getId())
   self.state.book_status = status or {}
+
+  if status and status.page_count and status.page_count > 0 then
+    local current_pages = self.settings:readBookSetting(filename, "pages")
+    if not current_pages or current_pages == 0 then
+      self.settings:updateBookSetting(filename, { pages = status.page_count })
+    end
+  end
 
   return errors
 end

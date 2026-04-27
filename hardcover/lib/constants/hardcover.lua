@@ -3,12 +3,8 @@ local Hardcover = {
     TO_READ = 1,
     READING = 2,
     FINISHED = 3,
+    PAUSED = 4,
     DNF = 5,
-  },
-  PRIVACY = {
-    PUBLIC = 1,
-    FOLLOWS = 2,
-    PRIVATE = 3,
   },
   CATEGORY = {
     TAG = "Tag",

@@ -8,50 +8,32 @@ local InputDialog = require("ui/widget/inputdialog")
 local InputText = require("ui/widget/inputtext")
 local Size = require("ui/size")
 local SpinWidget = require("ui/widget/spinwidget")
+local DateTimeWidget = require("ui/widget/datetimewidget")
 local TextWidget = require("ui/widget/textwidget")
-local ToggleSwitch = require("ui/widget/toggleswitch")
 local TextBoxWidget = require("ui/widget/textboxwidget")
 local UIManager = require("ui/uimanager")
 local _ = require("gettext")
+local T = require("ffi/util").template
 local logger = require("logger")
-
-local JOURNAL_NOTE = "note"
-local JOURNAL_QUOTE = "quote"
 
 local JournalDialog = InputDialog:extend {
   allow_newline = true,
   results = {},
-  title = "Create journal entry",
+  title = "Update StoryGraph progress",
   padding = 10,
 
-  event_type = JOURNAL_NOTE,
-  pages = _("???"),
-  page = nil,
-  edition_id = nil,
-  edition_type = nil,
-  tags = {},
-  hidden_tags = {},
-  privacy_setting_id = 1,
-  select_edition_callback = nil
+  page = nil, -- local progress percent
+  remote_page = nil, -- remote progress percent
+  book_id = nil,
+  date = nil, -- table with day, month, year
 }
-
-local function comma_split(text)
-  local result = {}
-  for str in string.gmatch(text, "([^,]+)") do
-    local trimmed = str:match("^%s*(.-)%s*$")
-    if trimmed ~= "" then
-      table.insert(result, trimmed)
-    end
-  end
-
-  return result
-end
 
 function JournalDialog:init()
   self:setModified()
+  self.date = self.date or os.date("*t")
 
   local text_widget = TextBoxWidget:new {
-    text = "I\n\nj",
+    text = "",
     face = Font:getFace("smallinfofont"),
     for_measurement_only = true,
   }
@@ -60,153 +42,83 @@ function JournalDialog:init()
   self.save_callback = function()
     return self.save_dialog_callback({
       book_id = self.book_id,
-      edition_id = self.edition_id,
       text = self.note_input:getText(),
-      page = self.page,
-      pages = self.pages,
-      event_type = self.event_type,
-      privacy_setting_id = self.privacy_setting_id,
-      tags = comma_split(self.tag_field.text),
-      hidden_tags = comma_split(self.hidden_tag_field.text)
+      progress = self.page,
+      date = self.date
     })
   end
 
   InputDialog.init(self)
   self.note_input = self._input_widget
 
-  local journal_type
-  journal_type = ToggleSwitch:new {
-    width = self.width - 30,
-    margin = 10,
-    margin_bottom = 20,
-    alternate = false,
-
-    toggle = { _("Note"), _("Quote") },
-    values = { JOURNAL_NOTE, JOURNAL_QUOTE },
-    config = self,
-    callback = function(position)
-      self.event_type = position == 1 and JOURNAL_NOTE or JOURNAL_QUOTE
-    end
-  }
-  journal_type:setPosition(self.event_type == JOURNAL_NOTE and 1 or 2)
-
-  local privacy_label = TextWidget:new {
-    text = "Privacy: ",
-    face = Font:getFace("cfont", 16)
-  }
-
-  local privacy_switch
-  privacy_switch = ToggleSwitch:new {
-    width = self.width - 40 - privacy_label:getWidth(),
-    toggle = { _("Public"), _("Follows"), _("Private") },
-    values = { 1, 2, 3 },
-    alternate = false,
-    config = self,
-    callback = function(position)
-      self.privacy_setting_id = position
-    end
-  }
-  privacy_switch:setPosition(self.privacy_setting_id)
-
-  local privacy_row = HorizontalGroup:new {
-    privacy_label,
-    HorizontalSpan:new {
-      width = 10
-    },
-    privacy_switch
-  }
-
-  self.tag_field = InputText:new {
-    width = self.width - Size.padding.default - Size.border.inputtext - 30,
-    input = table.concat(self.tags, ", "),
-    focused = false,
-    show_parent = self,
-    parent = self,
-    hint = _("Tags (comma separated)"),
-    face = Font:getFace("cfont", 16),
-  }
-  self.hidden_tag_field = InputText:new {
-    width = self.width - Size.padding.default - Size.border.inputtext - 30,
-    input = table.concat(self.hidden_tags, ", "),
-    focused = false,
-    show_parent = self,
-    parent = self,
-    hint = _("Hidden tags (comma separated)"),
-    face = Font:getFace("cfont", 16),
-  }
-
+  -- Progress Button
   self.page_button = Button:new {
-    text = "page",
     text_func = function()
-      return _("page " .. self.page .. " of " .. self.pages)
+      return _("Progress: " .. self.page .. "%")
     end,
-    width = (self.width - 10 - 30) / 2,
-    text_font_size = 16,
+    width = (self.width - 20) / 2,
+    text_font_size = 18,
     bordersize = Size.border.thin,
     callback = function()
-      local spinner = SpinWidget:new {
-        value = self.page,
-        value_min = 0,
-        value_max = self.pages,
-        value_step = 1,
-        value_hold_step = 20,
-        ok_text = _("Set page"),
-        title_text = _("Set current page"),
-        callback = function(spin)
-          self.page = spin.value
+      local progress_picker = DateTimeWidget:new{
+        day = self.page,
+        day_min = 0,
+        day_max = 100,
+        ok_text = _("Set progress"),
+        title_text = _("Set progress"),
+        info_text = T(_("KOReader %1%, StoryGraph %2%"), self.page, self.remote_page or "?"),
+        callback = function(picker)
+          self.page = picker.day
           self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
         end
       }
       self:onCloseKeyboard()
-      UIManager:show(spinner)
+      UIManager:show(progress_picker)
     end
   }
 
-  self.edition_button = Button:new {
-    text = "edition",
+  -- Date Button (triggers DateTimeWidget)
+  self.date_button = Button:new {
     text_func = function()
-      return self.edition_format or "Physical Book"
+      return string.format("%04d-%02d-%02d", self.date.year, self.date.month, self.date.day)
     end,
-    width = (self.width - 10 - 30) / 2,
-    text_font_size = 16,
+    width = (self.width - 20) / 2,
+    text_font_size = 18,
     bordersize = Size.border.thin,
-    callback = self.select_edition_callback
+    callback = function()
+      local date_picker = DateTimeWidget:new{
+        year = self.date.year,
+        month = self.date.month,
+        day = self.date.day,
+        ok_text = _("Set date"),
+        title_text = _("Set date"),
+        info_text = _("The date format is year, month, day."),
+        callback = function(picker)
+          self.date = {
+            year = picker.year,
+            month = picker.month,
+            day = picker.day
+          }
+          self.date_button:setText(self.date_button.text_func(self), self.date_button.width)
+        end
+      }
+      self:onCloseKeyboard()
+      UIManager:show(date_picker)
+    end
   }
 
-  local edition_row = FrameContainer:new {
+  local control_row = FrameContainer:new {
     padding_top = 10,
     padding_bottom = 8,
     bordersize = 0,
     HorizontalGroup:new {
-      self.edition_button,
-      HorizontalSpan:new {
-        width = 10
-      },
-      self.page_button
+      self.page_button,
+      HorizontalSpan:new { width = 10 },
+      self.date_button
     }
   }
 
-  self:addWidget(journal_type)
-  self:addWidget(edition_row)
-  self:addWidget(privacy_row)
-  self:addWidget(self.tag_field)
-  self:addWidget(self.hidden_tag_field)
-end
-
-function JournalDialog:onConfigChoose(values, name, event, args, position)
-  UIManager:tickAfterNext(function()
-    -- TODO regional refresh
-    UIManager:setDirty(self.dialog, "ui")
-  end)
-end
-
-function JournalDialog:setEdition(edition_id, edition_format, edition_pages)
-  self.edition_id = edition_id
-  self.edition_format = edition_format
-  self.pages = edition_pages or self.pages
-
-  self.page_button:setText(self.page_button.text_func(), self.page_button.width)
-  self.edition_button:setText(self.edition_button.text_func(), self.edition_button.width)
+  self:addWidget(control_row)
 end
 
 function JournalDialog:setModified()
@@ -219,27 +131,18 @@ function JournalDialog:setModified()
   end
 end
 
--- copied from MultiInputDialog.lua
 function JournalDialog:onSwitchFocus(inputbox)
-  -- unfocus current inputbox
   self._input_widget:unfocus()
-  -- and close its existing keyboard (via InputDialog's thin wrapper around _input_widget's own method)
   self:onCloseKeyboard()
-
   UIManager:setDirty(nil, function()
     return "ui", self.dialog_frame.dimen
   end)
-
-  -- focus new inputbox
   self._input_widget = inputbox
   self._input_widget:focus()
   self.focused_field_idx = inputbox.idx
-
   if (Device:hasKeyboard() or Device:hasScreenKB()) and G_reader_settings:isFalse("virtual_keyboard_enabled") then
-    -- do not load virtual keyboard when user is hiding it.
     return
   end
-  -- Otherwise make sure we have a (new) visible keyboard
   self:onShowKeyboard()
 end
 
