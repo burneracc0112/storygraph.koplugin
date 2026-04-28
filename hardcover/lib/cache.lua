@@ -11,9 +11,7 @@ end
 function Cache:updateBookStatus(filename, status)
   local settings = self.settings:readBookSettings(filename)
   local book_id = settings.book_id
-  local edition_id = settings.edition_id
-
-  self.state.book_status = Api:updateUserBook(book_id, status, edition_id) or {}
+  self.state.book_status = Api:updateUserBook(book_id, status) or {}
 end
 
 function Cache:cacheUserBook()

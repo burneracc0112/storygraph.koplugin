@@ -58,7 +58,7 @@ function Hardcover:showChangeEditionDialog(callback)
     "Select edition",
     editions,
     {
-      edition_id = self.settings:getLinkedEditionId()
+      book_id = self.settings:getLinkedBookId()
     },
     function(book)
       if book.book_id ~= self.settings:getLinkedBookId() then
@@ -102,7 +102,6 @@ function Hardcover:linkBook(book)
   if status.id and status.id ~= book.book_id then
     logger.info("StoryGraph: Redirecting link to your active edition: " .. status.id)
     book.book_id = status.id
-    book.edition_id = status.id
     book.pages = status.book_num_of_pages or book.pages
   end
 
@@ -116,7 +115,6 @@ function Hardcover:linkBook(book)
 
   local new_settings = {
     book_id = book.book_id,
-    edition_id = book.book_id, -- Keep these synced for simplicity
     edition_format = status.edition_format or Book:editionFormatName(book.edition_format, book.reading_format_id),
     pages = book.pages,
     title = book.title,
@@ -190,10 +188,10 @@ function Hardcover:linkBookByIsbn(identifiers)
 end
 
 function Hardcover:linkBookByHardcover(identifiers)
-  if identifiers.book_slug or identifiers.edition_id then
+  if identifiers.book_slug then
     local user_id = User:getId()
     local book_lookup = Api:findBookByIdentifiers(
-      { book_slug = identifiers.book_slug, edition_id = identifiers.edition_id }, user_id)
+      { book_slug = identifiers.book_slug }, user_id)
     if book_lookup then
       self:autolinkBook(book_lookup)
       return true

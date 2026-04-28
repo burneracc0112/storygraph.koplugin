@@ -612,7 +612,7 @@ function HardcoverApi:getReview(review_url)
   return review
 end
 
-function HardcoverApi:updateUserBook(book_id, status_id, edition_id)
+function HardcoverApi:updateUserBook(book_id, status_id)
   local status_map = {
     [1] = "to-read",
     [2] = "currently-reading",
@@ -686,7 +686,7 @@ function HardcoverApi:updateUserBook(book_id, status_id, edition_id)
   return nil
 end
 
-function HardcoverApi:updatePage(user_read_id, edition_id, value, started_at, update_type)
+function HardcoverApi:updatePage(user_read_id, value, started_at, update_type)
   local book_id = user_read_id:gsub("_read", "")
   
   local book_url = base_url .. "/books/" .. book_id
@@ -744,9 +744,9 @@ function HardcoverApi:updatePage(user_read_id, edition_id, value, started_at, up
   return nil
 end
 
-function HardcoverApi:createRead(book_id, edition_id, value, started_at, update_type)
+function HardcoverApi:createRead(book_id, value, started_at, update_type)
   -- For StoryGraph, creating a read record is often just updating progress for the first time
-  return self:updatePage(book_id .. "_read", edition_id, value, started_at, update_type)
+  return self:updatePage(book_id .. "_read", value, started_at, update_type)
 end
 
 function HardcoverApi:createJournalEntry(data)
@@ -977,7 +977,6 @@ function HardcoverApi:findEditions(book_id, user_id)
       if not format:lower():find("audio") then
         table.insert(editions, {
           book_id = id,
-          edition_id = id,
           title = title:gsub("^%s*(.-)%s*$", "%1"),
           edition_format = format,
           pages = pages,

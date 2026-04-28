@@ -55,10 +55,7 @@ function HardcoverSearchDialog:createListItem(book, active_item)
     info = book.users_read_count .. " reads"
   end
 
-  local active = active_item and (
-    (book.edition_id and book.edition_id == active_item.edition_id) or
-    (book.book_id == active_item.book_id)
-  )
+  local active = active_item and (book.book_id == active_item.book_id)
 
   local result = {
     title = title,
@@ -66,7 +63,6 @@ function HardcoverSearchDialog:createListItem(book, active_item)
     mandatory_dim = true,
     file = "hardcover-" .. book.book_id,
     book_id = book.book_id,
-    edition_id = book.edition_id,
     edition_format = book.edition_format,
     highlight = active,
   }
@@ -102,7 +98,7 @@ function HardcoverSearchDialog:createListItem(book, active_item)
   end
 
   local details = {}
-  if book.edition_id then
+  if book.book_id then
     if book.isbn and book.isbn ~= "" and book.isbn ~= "None" then table.insert(details, "ISBN: " .. book.isbn) end
     local format_str = book.edition_format or book.filetype or ""
     if format_str ~= "" then table.insert(details, format_str) end
@@ -124,7 +120,7 @@ function HardcoverSearchDialog:createListItem(book, active_item)
   if self.compatibility_mode then
     result.text = result.title
     result.dim = result.highlight
-    if book.edition_id then
+    if book.book_id then
       if details_str ~= "" then
         result.text = result.text .. "\n" .. details_str
       end
@@ -134,7 +130,7 @@ function HardcoverSearchDialog:createListItem(book, active_item)
       end
     end
   else
-    if book.edition_id and details_str ~= "" then
+    if book.book_id and details_str ~= "" then
       result.authors = details_str
     end
   end

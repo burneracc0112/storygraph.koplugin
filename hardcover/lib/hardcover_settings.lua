@@ -108,7 +108,7 @@ function HardcoverSettings:setTrackMethod(method)
 end
 
 function HardcoverSettings:editionLinked()
-  return self:getLinkedEditionId() ~= nil
+  return self:bookLinked()
 end
 
 function HardcoverSettings:readLinked()
@@ -128,7 +128,8 @@ function HardcoverSettings:getLinkedTitle()
 end
 
 function HardcoverSettings:getLinkedBookId()
-  return self:readBookSetting(self:getFilePath(), "book_id")
+  local file = self:getFilePath()
+  return self:readBookSetting(file, "book_id") or self:readBookSetting(file, "edition_id")
 end
 
 function HardcoverSettings:getLinkedEditionFormat()
@@ -136,7 +137,7 @@ function HardcoverSettings:getLinkedEditionFormat()
 end
 
 function HardcoverSettings:getLinkedEditionId()
-  return self:readBookSetting(self:getFilePath(), "edition_id")
+  return self:getLinkedBookId()
 end
 
 function HardcoverSettings:fileSyncEnabled(file)

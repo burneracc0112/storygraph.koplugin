@@ -42,7 +42,7 @@ function Book:parseIdentifiers(identifiers)
                        string.match(line, "storygraph%-edition:(%d+)")
 
     if hc_edition then
-      result.edition_id = hc_edition
+      result.book_slug = hc_edition
     end
 
     if not hc and not hc_edition then
