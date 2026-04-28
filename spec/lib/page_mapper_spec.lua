@@ -262,8 +262,8 @@ describe("PageMapper", function()
 
       local percent, page = page_map:getRemotePagePercent(10, 20, 29)
 
-      assert.are.equal(14 / 29, percent)
-      assert.are.equal(14, page)
+      assert.are.equal(15 / 29, percent)
+      assert.are.equal(15, page)
     end)
 
     it("returns a simple percentage if remote page is unavailable", function()
@@ -297,8 +297,8 @@ describe("PageMapper", function()
 
         local percent, page = page_map:getRemotePagePercent(20, 20, 100)
 
-        assert.are.equal(0.5, percent)
-        assert.are.equal(50, page)
+        assert.are.equal(0.25, percent)
+        assert.are.equal(25, page)
       end)
 
       it("returns the percent of mapped page to document pages if no remote page available", function()

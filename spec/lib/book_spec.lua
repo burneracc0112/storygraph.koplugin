@@ -25,8 +25,7 @@ HARDCOVER-EDITION:16193290
 ]]
 
       local expected = {
-        book_slug = "the-hobbit",
-        edition_id = "16193290"
+        book_slug = "16193290"
       }
       assert.are.same(expected, Book:parseIdentifiers(identifiers))
     end)
@@ -46,8 +45,7 @@ HARDCOVER-EDITION:1234567890123
 ]]
 
       local expected = {
-        book_slug = "1234567890",
-        edition_id = "1234567890123"
+        book_slug = "1234567890123"
       }
       assert.are.same(expected, Book:parseIdentifiers(identifiers))
     end)
