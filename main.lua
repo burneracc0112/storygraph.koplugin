@@ -376,7 +376,7 @@ function HardcoverApp:_handlePageUpdate(filename, value, immediate, callback, up
 
   local immediate_update = function()
     self.wifi:withWifi(function()
-      local result = Api:updatePage(current_read.id, current_read.edition_id, value, current_read.started_at, update_type)
+      local result = Api:updatePage(current_read.id, value, current_read.started_at, update_type)
       if result then
         self.state.book_status = result
         self:registerHighlight()

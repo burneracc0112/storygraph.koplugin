@@ -1,5 +1,6 @@
 local KoreaderVersion = require("version")
 local LuaSettings = require("luasettings")
+local DocSettings = require("docsettings")
 
 local _t = require("hardcover/lib/table_util")
 local SETTING = require("hardcover/lib/constants/settings")
@@ -24,17 +25,36 @@ function HardcoverSettings:new(path, ui)
   return o
 end
 
+function HardcoverSettings:getDocSettings(filename)
+  if self.ui and self.ui.doc_settings and self.ui.document and self.ui.document.file == filename then
+    return self.ui.doc_settings
+  end
+  return DocSettings:open(filename)
+end
+
 function HardcoverSettings:readSetting(key)
   return self.settings:readSetting(key)
 end
 
 function HardcoverSettings:readBookSettings(filename)
-  local books = self.settings:readSetting("books")
-  if not books then
+  if not filename then
     return {}
   end
 
-  return books[filename]
+  -- 1. Try sidecar first (storygraph sub-table in metadata.lua)
+  local sidecar = self:getDocSettings(filename)
+  local sidecar_data = sidecar:readSetting("storygraph")
+  if sidecar_data then
+    return sidecar_data
+  end
+
+  -- 2. Fallback to global books table
+  local books = self.settings:readSetting("books")
+  if books and books[filename] then
+    return books[filename]
+  end
+
+  return {}
 end
 
 function HardcoverSettings:readBookSetting(filename, key)
@@ -49,12 +69,14 @@ function HardcoverSettings:readBookSetting(filename, key)
 end
 
 function HardcoverSettings:updateBookSetting(filename, config)
-  local books = self.settings:readSetting("books", {})
-  if not books[filename] then
-    books[filename] = {}
-  end
-  local book_setting = books[filename]
-  local original_value = { table.unpack(book_setting) }
+  if not filename then return end
+
+  -- 1. Load existing data (prioritizing sidecar)
+  local book_setting = self:readBookSettings(filename)
+  local original_value = {}
+  for k, v in pairs(book_setting) do original_value[k] = v end
+
+  -- 2. Apply changes
   for k, v in pairs(config) do
     if k == "_delete" then
       for _, name in ipairs(v) do
@@ -65,7 +87,18 @@ function HardcoverSettings:updateBookSetting(filename, config)
     end
   end
 
-  self.settings:flush()
+  -- 3. Save to sidecar
+  local sidecar = self:getDocSettings(filename)
+  sidecar:saveSetting("storygraph", book_setting)
+  sidecar:flush()
+
+  -- 4. Clean up global table (Migration)
+  local books = self.settings:readSetting("books")
+  if books and books[filename] then
+    books[filename] = nil
+    self.settings:saveSetting("books", books)
+    self.settings:flush()
+  end
 
   self:notify(SETTING.BOOKS, { filename = filename, config = config }, original_value)
 end

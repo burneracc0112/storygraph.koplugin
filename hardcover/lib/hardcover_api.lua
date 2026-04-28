@@ -152,20 +152,25 @@ end
 
 -- Helper to extract authenticity token from HTML
 function HardcoverApi:extract_csrf(html)
-  if not html then return nil end
-  -- Match meta tags with varying attribute order and quotes
-  local csrf = html:match('meta%s+name=["\']csrf%-token["\']%s+content=["\']([^"\']+)["\']')
+  if not html then return self.last_csrf end
+  
+  local csrf = html:match('<meta%s+[^>]*name=["\']csrf%-token["\']%s+[^>]*content=["\']([^"\']+)["\']')
+            or html:match('<meta%s+[^>]*content=["\']([^"\']+)["\']%s+[^>]*name=["\']csrf%-token["\']')
+  
   if not csrf then
-    csrf = html:match('meta%s+content=["\']([^"\']+)["\']%s+name=["\']csrf%-token["\']')
+    csrf = html:match('<input%s+[^>]*name=["\']authenticity_token["\']%s+[^>]*value=["\']([^"\']+)["\']')
+        or html:match('<input%s+[^>]*value=["\']([^"\']+)["\']%s+[^>]*name=["\']authenticity_token["\']')
   end
-  -- Fallback to authenticity_token input
+
   if not csrf then
-    csrf = html:match('name=["\']authenticity_token["\']%s+value=["\']([^"\']+)["\']')
+    csrf = html:match('csrf%-token["\']%s+content=["\']([^"\']+)["\']')
   end
-  if not csrf then
-    csrf = html:match('value=["\']([^"\']+)["\']%s+name=["\']authenticity_token["\']')
+
+  if csrf then
+    self.last_csrf = csrf
   end
-  return csrf
+
+  return csrf or self.last_csrf
 end
 
 function HardcoverApi:request(url, method, data, custom_headers)
