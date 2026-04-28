@@ -13,7 +13,7 @@ function PageMapper:getUnmappedPage(remote_page, document_pages, remote_pages)
   local document_page = self.state.page_map and _t.binSearch(self.state.page_map, remote_page)
 
   if not document_page then
-    document_page = math.ceil((remote_page / remote_pages) * document_pages)
+    document_page = math.floor((remote_page / remote_pages) * document_pages + 0.5)
   end
 
   return document_page
@@ -32,7 +32,7 @@ function PageMapper:getMappedPage(raw_page, document_pages, remote_pages)
   end
 
   if remote_pages and document_pages then
-    return math.ceil((raw_page / document_pages) * remote_pages)
+    return math.floor((raw_page / document_pages) * remote_pages + 0.5)
   end
 
   return raw_page
@@ -130,7 +130,7 @@ function PageMapper:getRemotePagePercent(raw_page, document_pages, remote_pages)
   if local_percent then
     local total_pages = remote_pages or document_pages
 
-    local remote_page = math.ceil(local_percent * total_pages)
+    local remote_page = math.floor(local_percent * total_pages + 0.5)
     return remote_page / total_pages, mapped_page or remote_page
   end
 

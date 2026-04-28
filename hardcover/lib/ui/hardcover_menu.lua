@@ -885,25 +885,6 @@ Quotes always include this info.]],
       end
     },
     {
-      text = "Skip update if behind remote",
-      enabled_func = function()
-        return true
-      end,
-      checked_func = function()
-        return self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
-      end,
-      callback = function(menu_instance)
-        local setting = self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
-        self.settings:updateSetting(SETTING.SKIP_BEHIND_PROGRESS, not setting)
-        menu_instance:updateItems()
-      end,
-      hold_callback = function()
-        UIManager:show(InfoMessage:new {
-          text = [[When enabled, automatic syncs will be skipped if your local reading position is behind the progress already recorded on StoryGraph. This prevents accidentally overwriting progress made on another device.]],
-        })
-      end
-    },
-    {
       text = "Version check frequency",
       enabled_func = function()
         return true

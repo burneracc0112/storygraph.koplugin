@@ -1,3 +1,4 @@
+local logger = require("logger")
 local _ = require("gettext")
 local json = require("json")
 
@@ -139,7 +140,7 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
   local total_pages = document:getPageCount()
 
   if not initial_percent then
-    initial_percent = math.floor((page / total_pages) * 100)
+    initial_percent = math.floor((page / total_pages) * 100 + 0.5)
   end
 
   -- Augment text with location info
@@ -171,25 +172,33 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
     book_id = settings.book_id,
     page = initial_percent,
     remote_page = remote_pages,
+    remote_percent = remote_percent,
     page_mapper = self.page_mapper,
     save_dialog_callback = function(book_data)
       local api_data = mapJournalData(book_data)
-      local result = Api:createJournalEntry(api_data)
-      if result then
-        UIManager:nextTick(function()
+      local saving_msg = InfoMessage:new{
+        text = _("Saving progress to StoryGraph..."),
+      }
+      UIManager:show(saving_msg)
+      
+      UIManager:scheduleIn(0.1, function()
+        local result = Api:createJournalEntry(api_data)
+        UIManager:close(saving_msg)
+        
+        if result then
           UIManager:close(dialog)
+          UIManager:setDirty(nil, "full")
 
           if wifi_was_off then
             UIManager:nextTick(function()
               self.wifi:wifiDisablePrompt()
             end)
           end
-        end)
-
-        return true, _("StoryGraph progress updated")
-      else
-        return false, _("Failed to update StoryGraph")
-      end
+        else
+          self:showError(_("Failed to update StoryGraph"))
+          UIManager:setDirty(nil, "full")
+        end
+      end)
     end,
 
     close_callback = function()

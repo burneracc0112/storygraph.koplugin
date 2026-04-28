@@ -1,4 +1,5 @@
 local Button = require("ui/widget/button")
+local ConfirmBox = require("ui/widget/confirmbox")
 local Device = require("device")
 local Font = require("ui/font")
 local FrameContainer = require("ui/widget/container/framecontainer")
@@ -25,13 +26,24 @@ local JournalDialog = InputDialog:extend {
 
   page = nil, -- current mapped value (percent or page)
   remote_page = nil, -- raw remote page count
+  remote_percent = nil, -- initial remote percentage
   progress_type = "percentage",
   book_id = nil,
   date = nil, -- table with day, month, year
 }
   
 function JournalDialog:onConfigChoose(key, value)
-  -- Satisfy ToggleSwitch requirement
+  -- Recalculate self.page based on the new type
+  local current_local = self.page_mapper.ui:getCurrentPage()
+  local total_local = self.page_mapper.ui.document:getPageCount()
+  local remote_total = self.remote_page
+  if self.progress_type == "percentage" then
+    self.page = math.floor((current_local / total_local) * 100 + 0.5)
+  else
+    self.page = self.page_mapper:getMappedPage(current_local, total_local, remote_total)
+  end
+  self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
+  UIManager:setDirty(self.page_button, "partial")
 end
 
 function JournalDialog:init()
@@ -45,16 +57,48 @@ function JournalDialog:init()
   }
   self.text_height = text_widget:getTextHeight()
 
-  self.save_callback = function()
-    return self.save_dialog_callback({
-      book_id = self.book_id,
-      text = self.note_input:getText(),
-      progress = self.page,
-      progress_type = self.progress_type,
-      date = self.date
-    })
-  end
+  local journal_self = self
+  local confirm_bypass = false
+  self.save_callback = function() 
+    local remote_val = journal_self.remote_percent or 0
+    local current_pct
+    if journal_self.progress_type == "percentage" then
+      current_pct = journal_self.page
+    else
+      local total_remote = journal_self.remote_page or 1
+      current_pct = math.floor((journal_self.page / total_remote) * 100 + 0.5)
+    end
 
+    local save_data = {
+      book_id = journal_self.book_id,
+      text = journal_self.note_input:getText(),
+      progress = journal_self.page,
+      progress_type = journal_self.progress_type,
+      date = journal_self.date
+    }
+
+    if not confirm_bypass and remote_val > current_pct then
+      local confirm = ConfirmBox:new{
+        text = _("Your selection (" .. current_pct .. "%) is behind your current StoryGraph progress (" .. remote_val .. "%). Are you sure you want to save?"),
+        ok_text = _("Save anyway"),
+        cancel_text = _("Cancel"),
+        ok_callback = function()
+          confirm_bypass = true
+          journal_self.save_dialog_callback(save_data)
+        end,
+        cancel_callback = function()
+          journal_self:setModified()
+          UIManager:nextTick(function()
+            UIManager:setDirty(nil, "full")
+          end)
+        end
+      }
+      UIManager:show(confirm)
+      return true -- prevent closing for now
+    end
+
+    journal_self.save_dialog_callback(save_data)
+  end -- Satisfy InputDialog
   InputDialog.init(self)
   self.note_input = self._input_widget
 
@@ -75,6 +119,13 @@ function JournalDialog:init()
       local total_pages = self.page_mapper.ui.document:getPageCount()
       local remote_pages = self.remote_page
 
+      local display_local_page
+      if self.progress_type == "percentage" then
+        display_local_page = math.floor((self.page / 100) * total_pages + 0.5)
+      else
+        display_local_page = self.page_mapper:getUnmappedPage(self.page, total_pages, remote_pages)
+      end
+
       local spinner = UpdateDoubleSpinWidget:new {
         ok_always_enabled = true,
         left_text = self.progress_type == "percentage" and "Percentage" or "Edition page",
@@ -85,7 +136,7 @@ function JournalDialog:init()
         left_hold_step = 20,
 
         right_text = "Local page",
-        right_value = current_page,
+        right_value = display_local_page,
         right_max = total_pages,
         right_step = 1,
         right_hold_step = 20,
@@ -94,7 +145,7 @@ function JournalDialog:init()
           if remote_changed then
             local mapped_local
             if self.progress_type == "percentage" then
-              mapped_local = math.ceil((new_remote_val / 100) * total_pages)
+              mapped_local = math.floor((new_remote_val / 100) * total_pages + 0.5)
             else
               mapped_local = self.page_mapper:getUnmappedPage(new_remote_val, total_pages, remote_pages)
             end
@@ -102,7 +153,7 @@ function JournalDialog:init()
           else
             local mapped_remote
             if self.progress_type == "percentage" then
-              mapped_remote = math.ceil((new_local_val / total_pages) * 100)
+              mapped_remote = math.floor((new_local_val / total_pages) * 100 + 0.5)
             else
               mapped_remote = self.page_mapper:getMappedPage(new_local_val, total_pages, remote_pages)
             end
@@ -121,6 +172,8 @@ function JournalDialog:init()
     end
   }
 
+
+
   -- Progress Type Toggle
   local progress_type_toggle = ToggleSwitch:new {
     width = self.width - 40,
@@ -133,19 +186,9 @@ function JournalDialog:init()
       local old_type = self.progress_type
       self.progress_type = position == 1 and "percentage" or "pages"
       if old_type ~= self.progress_type then
-        -- Recalculate self.page based on the new type
-        local current_local = self.page_mapper.ui:getCurrentPage()
-        local total_local = self.page_mapper.ui.document:getPageCount()
-        local remote_total = self.remote_page
-        if self.progress_type == "percentage" then
-          self.page = math.ceil((current_local / total_local) * 100)
-        else
-          self.page = self.page_mapper:getMappedPage(current_local, total_local, remote_total)
-        end
+        self:onConfigChoose()
       end
-      self.page_button:setText(self.page_button.text_func(self), self.page_button.width)
-      UIManager:setDirty(self.page_button, "partial")
-    end
+    end,
   }
   progress_type_toggle:setPosition(self.progress_type == "percentage" and 1 or 2)
   self:addWidget(progress_type_toggle)

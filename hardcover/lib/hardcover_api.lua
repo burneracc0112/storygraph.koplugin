@@ -650,11 +650,6 @@ function HardcoverApi:updatePage(user_read_id, edition_id, value, started_at, up
     ["authenticity_token"] = csrf
   }, custom_headers)
   
-  logger.info("StoryGraph: Progress update response code: " .. (code or "nil"))
-  if code == 302 and resp_headers and resp_headers["location"] then
-    logger.info("StoryGraph: Redirected to: " .. resp_headers["location"])
-  end
-
   if code and (code >= 200 and code < 300 or code == 302) then
     return self:findUserBook(book_id)
   end
@@ -673,7 +668,7 @@ function HardcoverApi:createJournalEntry(data)
   local csrf = self:extract_csrf(html)
   
   if not csrf then
-    logger.warn("StoryGraph: Could not extract CSRF token for journal entry")
+    logger.warn("StoryGraph: Could not extract CSRF token for journal entry. HTML length: " .. (html and #html or 0))
     return nil
   end
 
@@ -683,7 +678,6 @@ function HardcoverApi:createJournalEntry(data)
   local last_reached_percent = html:match('class="read%-status%-last%-reached%-percent"%s+[^>]*value="([^"]+)"') or "0"
 
   local update_url = base_url .. "/update-progress-with-note"
-  logger.info("StoryGraph: Creating journal entry for book " .. book_id)
 
   local date = data.date or os.date("*t")
   local post_data = {
@@ -717,12 +711,10 @@ function HardcoverApi:createJournalEntry(data)
   return nil
 end
 
--- Stubs
 function HardcoverApi:removeRead(user_book_id)
   local book_id = user_book_id:gsub("_read", "")
   local book_url = base_url .. "/books/" .. book_id
   
-  -- Need CSRF for removal
   local _, html = self:request(book_url, "GET")
   local csrf = self:extract_csrf(html)
   
@@ -734,7 +726,6 @@ function HardcoverApi:removeRead(user_book_id)
     ["X-Requested-With"] = "XMLHttpRequest",
     ["Accept"] = "text/javascript",
     ["Referer"] = book_url,
-    -- Important: the curl showed content-length 0 for this POST
     ["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
   }
   

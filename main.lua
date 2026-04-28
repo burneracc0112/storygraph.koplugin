@@ -373,6 +373,7 @@ function HardcoverApp:_handlePageUpdate(filename, value, immediate, callback, up
       local result = Api:updatePage(current_read.id, current_read.edition_id, value, current_read.started_at, update_type)
       if result then
         self.state.book_status = result
+        self:registerHighlight()
       end
       if callback then
         callback(result)
@@ -438,8 +439,12 @@ function HardcoverApp:pageUpdateEvent(page)
     local current_compare = math.floor(current_percent * 100 / percent_interval)
 
     if last_compare ~= current_compare then
-      local percentage = math.floor(current_percent * 100)
-      self:_handlePageUpdate(self.ui.document.file, percentage)
+      local percentage = math.floor(current_percent * 100 + 0.5)
+      local last_percent = math.floor(previous_percent * 100 + 0.5)
+      local remote_percent = self.state.book_status.percent_finished or 0
+      if percentage > last_percent and percentage >= remote_percent then
+        self:_handlePageUpdate(self.ui.document.file, percentage)
+      end
     end
   end
 end
@@ -455,14 +460,12 @@ function HardcoverApp:onUpdatePos()
 end
 
 function HardcoverApp:onReaderReady()
-  --logger.warn("HARDCOVER on ready")
-
   self.page_mapper:cachePageMap()
   self:registerHighlight()
   self.state.page = self.ui:getCurrentPage()
-
-  if self.ui.document and (self.settings:syncEnabled() or (not self.settings:bookLinked() and self.settings:autolinkEnabled())) then
-    UIManager:scheduleIn(4, self.startReadCache, self)
+ 
+  if self.ui.document and (self.settings:bookLinked() or self.settings:autolinkEnabled()) then
+    UIManager:scheduleIn(1, self.startReadCache, self)
   end
   UIManager:scheduleIn(1, self.initiateVersionCheck, self)
 end
@@ -705,13 +708,14 @@ function HardcoverApp:onDocSettingsItemsChanged(file, doc_settings)
 end
 
 function HardcoverApp:startReadCache()
-  --logger.warn("HARDCOVER start read cache")
+  logger.info("StoryGraph: startReadCache triggered")
   if not self:isActive() then
+    logger.info("StoryGraph: startReadCache aborted - app not active")
     return
   end
 
   if self.state.read_cache_started then
-    --logger.warn("HARDCOVER Cache already started")
+    logger.info("StoryGraph: startReadCache aborted - already started")
     return
   end
 
@@ -750,14 +754,14 @@ function HardcoverApp:startReadCache()
               end
 
               local err = self.cache:cacheUserBook()
-              --if err then
-              --logger.warn("HARDCOVER cache error", err)
-              --end
+              self:registerHighlight()
+              logger.info("StoryGraph: startReadCache - cacheUserBook completed, status=" .. (self.state.book_status.status_id or "nil"))
               if err and err.completed == false then
                 return fail(err)
               end
 
               success()
+              self:registerHighlight() -- redundant but safe
             end)
           end
         else
@@ -800,7 +804,8 @@ function HardcoverApp:registerHighlight()
           return _("StoryGraph: Add note")
         end,
         enabled_func = function()
-          return self:isActive()
+          local status = self.state.book_status.status_id
+          return self:isActive() and status and status ~= HARDCOVER.STATUS.FINISHED and status ~= HARDCOVER.STATUS.DNF and status ~= HARDCOVER.STATUS.TO_READ
         end,
         callback = function()
           if not self:isActive() then return end
