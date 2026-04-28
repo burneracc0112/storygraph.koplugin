@@ -13,6 +13,7 @@ local Book = require("hardcover/lib/book")
 local User = require("hardcover/lib/user")
 
 local SETTING = require("hardcover/lib/constants/settings")
+local HARDCOVER = require("hardcover/lib/constants/hardcover")
 
 local cache = {}
 
@@ -39,7 +40,9 @@ function Hardcover:showLinkBookDialog(force_search, link_callback)
     },
     function(book)
       self:linkBook(book)
-      self:showChangeEditionDialog(link_callback)
+      if link_callback then
+        link_callback()
+      end
     end,
     function(search)
       self.dialog_manager:updateSearchResults(search)
@@ -80,10 +83,28 @@ function Hardcover:updateCurrentBookStatus(status)
   end
 end
 
--- Removed changeBookVisibility
-
 function Hardcover:linkBook(book)
   local filename = self.ui.document.file
+
+  -- 1. Fetch remote status (API handles redirection and audio filtering internally)
+  local status = Api:findUserBook(book.book_id) or {}
+  
+  -- 2. If the final resolved edition is Audio, fail the linking process
+  if status.is_audio then
+    logger.warn("StoryGraph: Cannot link to an Audio edition.")
+    UIManager:show(InfoMessage:new{
+      text = _("StoryGraph: Cannot link to an Audio edition. Please select a text-based edition.")
+    })
+    return false
+  end
+
+  -- 3. If findUserBook resolved to a different (non-audio) edition, use that ID instead
+  if status.id and status.id ~= book.book_id then
+    logger.info("StoryGraph: Redirecting link to your active edition: " .. status.id)
+    book.book_id = status.id
+    book.edition_id = status.id
+    book.pages = status.book_num_of_pages or book.pages
+  end
 
   local delete = {}
   local clear_keys = { "book_id", "edition_id", "edition_format", "pages", "title" }
@@ -95,25 +116,21 @@ function Hardcover:linkBook(book)
 
   local new_settings = {
     book_id = book.book_id,
-    edition_id = book.edition_id,
-    edition_format = Book:editionFormatName(book.edition_format, book.reading_format_id),
+    edition_id = book.book_id, -- Keep these synced for simplicity
+    edition_format = status.edition_format or Book:editionFormatName(book.edition_format, book.reading_format_id),
     pages = book.pages,
     title = book.title,
     _delete = delete
   }
 
+  -- 3. Save link information
   self.settings:updateBookSetting(filename, new_settings)
-  self.cache:cacheUserBook()
+  self.state.book_status = status
 
-  if book.book_id and self.state.book_status.id then
-    if new_settings.edition_id and new_settings.edition_id ~= self.state.book_status.edition_id then
-      -- update edition
-      self.state.book_status = Api:updateUserBook(
-        new_settings.book_id,
-        self.state.book_status.status_id,
-        new_settings.edition_id
-      ) or {}
-    end
+  -- 4. Auto-Add to Library if no status was found on ANY edition
+  if not self.state.book_status.status_id then
+    logger.info("StoryGraph: Book has no status on any edition, adding to Currently Reading automatically")
+    self.state.book_status = Api:updateUserBook(book.book_id, HARDCOVER.STATUS.READING) or {}
   end
 
   return true

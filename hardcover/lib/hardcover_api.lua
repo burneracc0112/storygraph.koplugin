@@ -333,7 +333,7 @@ function HardcoverApi:findBooks(title, author, userId)
   return results
 end
 
-function HardcoverApi:findUserBook(book_id, user_id)
+function HardcoverApi:findUserBook(book_id, user_id, is_recursion)
   if not book_id then return {} end
   local book_url = base_url .. "/books/" .. book_id
   local code, html = self:request(book_url, "GET")
@@ -346,6 +346,35 @@ function HardcoverApi:findUserBook(book_id, user_id)
   
   -- Check for current status
   local status_btn = root:select(".read-status-label")[1]
+  
+  -- If no status button on this edition, check if user is reading ANOTHER edition
+  if not status_btn and not is_recursion then
+    local other_id = nil
+    local links = root:select("a")
+    for _, link in ipairs(links) do
+      local href = link.attributes.href
+      if href and href:match("^/books/[^/]+$") then
+        local text = decode_entities(get_node_text(link)):lower()
+        if text:find("want to read another edition") or text:find("currently reading another edition") then
+          other_id = href:match("/books/([^/%?]+)")
+          if other_id then break end
+        end
+      end
+    end
+
+    if other_id and other_id ~= book_id then
+      logger.info("StoryGraph: Checking another edition for status: " .. other_id)
+      local other_res = self:findUserBook(other_id, user_id, true)
+      -- ONLY redirect if the other edition has a status AND is not an audio edition
+      if other_res and other_res.status_id and not other_res.is_audio then
+        logger.info("StoryGraph: Found valid text edition status for redirection: " .. other_id)
+        return other_res
+      else
+        logger.info("StoryGraph: Another edition was Audio or had no status. Staying with original.")
+      end
+    end
+  end
+
   local status_text = ""
   if status_btn then
     status_text = decode_entities(get_node_text(status_btn)):lower()
@@ -405,6 +434,26 @@ function HardcoverApi:findUserBook(book_id, user_id)
     end
   end
 
+  -- Extract Edition Format
+  local edition_format = ""
+  -- Look for edition info that matches the target book id if possible
+  local edition_info_node = root:select(".edition-info[data-book-id='" .. book_id .. "']")[1]
+  if not edition_info_node then
+    edition_info_node = root:select(".edition-info")[1]
+  end
+
+  if edition_info_node then
+    local info_nodes = edition_info_node:select("p")
+    for _, p in ipairs(info_nodes) do
+      local t = get_node_text(p)
+      if t:match("Format:") then
+        edition_format = t:gsub(".*Format:%s*", ""):gsub("^%s*(.-)%s*$", "%1")
+        logger.info("StoryGraph: detected format = " .. edition_format)
+        break
+      end
+    end
+  end
+
   local res = {
     id = book_id,
     book_id = book_id,
@@ -415,6 +464,8 @@ function HardcoverApi:findUserBook(book_id, user_id)
     last_reached_pages = last_reached_pages,
     percent_finished = last_reached_percent,
     progress_type = progress_type,
+    edition_format = edition_format,
+    is_audio = edition_format:lower():find("audio") ~= nil,
     user_book_reads = {
       {
         id = book_id .. "_read",
