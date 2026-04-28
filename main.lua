@@ -351,19 +351,16 @@ function HardcoverApp:_handlePageUpdate(filename, value, immediate, callback, up
     return
   end
 
-  -- Don't push progress if local is behind remote (prevents accidental downgrade)
-  -- Configurable via Settings > "Skip update if behind remote"
-  local skip_behind = self.settings:readSetting(SETTING.SKIP_BEHIND_PROGRESS) ~= false
-  if skip_behind and update_type == "percentage" then
+  if update_type == "percentage" then
     local remote_percent = tonumber(self.state.book_status.percent_finished) or 0
     if not immediate and value < remote_percent then
-      logger.info("StoryGraph: Local progress (" .. value .. "%) is behind remote (" .. remote_percent .. "%). Skipping update.")
+      logger.info("StoryGraph: Local progress (" .. value .. "%) is behind remote (" .. remote_percent .. "%). Skipping auto-update.")
       return
     end
-  elseif skip_behind and update_type == "pages" then
+  elseif update_type == "pages" then
     local remote_page = tonumber(self.state.book_status.last_reached_pages) or 0
     if not immediate and value < remote_page then
-      logger.info("StoryGraph: Local progress (" .. value .. " pages) is behind remote (" .. remote_page .. " pages). Skipping update.")
+      logger.info("StoryGraph: Local progress (" .. value .. " pages) is behind remote (" .. remote_page .. " pages). Skipping auto-update.")
       return
     end
   end

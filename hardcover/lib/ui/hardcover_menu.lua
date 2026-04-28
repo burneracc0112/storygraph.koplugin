@@ -659,6 +659,31 @@ end
 function HardcoverMenu:getTrackingSubMenuItems()
   return {
     {
+      text = _("Auto sync by edition pages"),
+      checked_func = function()
+        return self.settings:syncByRemotePages()
+      end,
+      enabled_func = function()
+        return self:isActive() and self.settings:bookLinked()
+      end,
+      callback = function()
+        local setting = self.settings:syncByRemotePages()
+        self.settings:updateSetting(SETTING.SYNC_BY_REMOTE_PAGES, not setting)
+      end,
+    },
+
+    {
+      text = "Always track progress by default",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.ALWAYS_SYNC) ~= false
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.ALWAYS_SYNC) ~= false
+        self.settings:updateSetting(SETTING.ALWAYS_SYNC, not setting)
+      end,
+      separator = true
+    },
+    {
       text = "Update periodically",
       radio = true,
       checked_func = function()
@@ -766,126 +791,13 @@ function HardcoverMenu:getTrackingSubMenuItems()
       end,
       keep_menu_open = true
     },
-    {
-      text = _("Auto sync by edition pages"),
-      checked_func = function()
-        return self.settings:syncByRemotePages()
-      end,
-      enabled_func = function()
-        return self:isActive() and self.settings:bookLinked()
-      end,
-      callback = function()
-        local setting = self.settings:syncByRemotePages()
-        self.settings:updateSetting(SETTING.SYNC_BY_REMOTE_PAGES, not setting)
-      end,
-    },
   }
 end
 
-function HardcoverMenu:getSettingsSubMenuItems()
+function HardcoverMenu:getUpdateSubMenuItems()
   return {
     {
-      text = "Automatically link by ISBN",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.LINK_BY_ISBN) == true
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.LINK_BY_ISBN) == true
-        self.settings:updateSetting(SETTING.LINK_BY_ISBN, not setting)
-      end
-    },
-
-    {
-      text = "Automatically link by title and author",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.LINK_BY_TITLE) == true
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.LINK_BY_TITLE) == true
-        self.settings:updateSetting(SETTING.LINK_BY_TITLE, not setting)
-      end,
-      separator = true
-    },
-    {
-      text_func = function()
-        return "Track progress settings: " .. ""
-      end,
-      sub_item_table_func = function()
-        return self:getTrackingSubMenuItems()
-      end,
-    },
-    {
-      text = "Always track progress by default",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.ALWAYS_SYNC) == true
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.ALWAYS_SYNC) == true
-        self.settings:updateSetting(SETTING.ALWAYS_SYNC, not setting)
-      end,
-    },
-    {
-      text = "Enable wifi on demand",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.ENABLE_WIFI) == true
-      end,
-      enabled_func = function()
-        return Device:hasWifiRestore()
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.ENABLE_WIFI) == true
-        self.settings:updateSetting(SETTING.ENABLE_WIFI, not setting)
-      end
-    },
-    {
-      text = "Confirm changes to book read status",
-      checked_func = function()
-        return self.settings:menuConfirm()
-      end,
-      callback = function()
-        local setting = self.settings:menuConfirm() == true
-        self.settings:setMenuConfirm(not setting)
-      end
-    },
-    {
-      text = "Compatibility mode",
-      checked_func = function()
-        return self.settings:compatibilityMode()
-      end,
-      callback = function()
-        local setting = self.settings:compatibilityMode()
-        self.settings:updateSetting(SETTING.COMPATIBILITY_MODE, not setting)
-      end,
-      hold_callback = function()
-        UIManager:show(InfoMessage:new {
-          text = [[Disable fancy menu for book and edition search results.
-
-May improve compatibility for some versions of KOReader]],
-        })
-      end
-    },
-    {
-      text = "Include location info in regular notes",
-      checked_func = function()
-        return self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
-      end,
-      callback = function()
-        local setting = self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
-        self.settings:updateSetting(SETTING.INCLUDE_LOCATION_IN_NOTES, not setting)
-      end,
-      hold_callback = function()
-        UIManager:show(InfoMessage:new {
-          text = [[Automatically append Chapter, Page, and % info to your regular notes. 
-          
-Quotes always include this info.]],
-        })
-      end
-    },
-    {
       text = "Ignore version blocks",
-      enabled_func = function()
-        return true
-      end,
       checked_func = function()
         return self.settings:readSetting(SETTING.IGNORE_VERSION_BLOCK) == true
       end,
@@ -895,14 +807,12 @@ Quotes always include this info.]],
         self.settings:updateSetting(SETTING.IGNORE_VERSION_BLOCK, new_setting)
         
         if new_setting then
-          -- If we just unblocked, try to start sync
           UIManager:show(Notification:new {
             text = _("StoryGraph: Version block ignored. Sync enabled."),
             timeout = 5
           })
           self.app:startReadCache()
         else
-          -- If we just re-blocked, cancel pending
           UIManager:show(Notification:new {
             text = _("StoryGraph: Version block active. Sync disabled."),
             timeout = 5
@@ -919,9 +829,6 @@ Quotes always include this info.]],
     },
     {
       text = "Show version alert dialog",
-      enabled_func = function()
-        return true
-      end,
       checked_func = function()
         return self.settings:readSetting(SETTING.SHOW_VERSION_DIALOG) ~= false
       end,
@@ -938,9 +845,6 @@ Quotes always include this info.]],
     },
     {
       text = "Version check frequency",
-      enabled_func = function()
-        return true
-      end,
       callback = function(menu_instance)
         local current = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
         if type(current) == "table" then current = 1 end
@@ -963,7 +867,7 @@ Quotes always include this info.]],
       text_func = function()
         local current = self.settings:readSetting(SETTING.VERSION_CHECK_INTERVAL) or 1
         if type(current) == "table" then current = 1 end
-        return "Version check frequency: " .. current .. " day(s)"
+        return "Check frequency: " .. current .. " day(s)"
       end,
       hold_callback = function()
         UIManager:show(InfoMessage:new {
@@ -971,6 +875,11 @@ Quotes always include this info.]],
         })
       end
     },
+  }
+end
+
+function HardcoverMenu:getAuthSubMenuItems()
+  return {
     {
       text = _("StoryGraph Session Cookie"),
       callback = function()
@@ -1035,6 +944,109 @@ Quotes always include this info.]],
         UIManager:show(dialog)
       end,
     }
+  }
+end
+
+function HardcoverMenu:getSettingsSubMenuItems()
+  return {
+    {
+      text = "Automatically link by ISBN",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.LINK_BY_ISBN) == true
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.LINK_BY_ISBN) == true
+        self.settings:updateSetting(SETTING.LINK_BY_ISBN, not setting)
+      end
+    },
+    {
+      text = "Automatically link by title and author",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.LINK_BY_TITLE) == true
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.LINK_BY_TITLE) == true
+        self.settings:updateSetting(SETTING.LINK_BY_TITLE, not setting)
+      end,
+      separator = true
+    },
+    {
+      text = "Progress tracking settings",
+      sub_item_table_func = function()
+        return self:getTrackingSubMenuItems()
+      end,
+      separator = true
+    },
+    {
+      text = "Enable wifi on demand",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.ENABLE_WIFI) == true
+      end,
+      enabled_func = function()
+        return Device:hasWifiRestore()
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.ENABLE_WIFI) == true
+        self.settings:updateSetting(SETTING.ENABLE_WIFI, not setting)
+      end
+    },
+    {
+      text = "Confirm changes to book read status",
+      checked_func = function()
+        return self.settings:menuConfirm()
+      end,
+      callback = function()
+        local setting = self.settings:menuConfirm() == true
+        self.settings:setMenuConfirm(not setting)
+      end
+    },
+    {
+      text = "Compatibility mode",
+      checked_func = function()
+        return self.settings:compatibilityMode()
+      end,
+      callback = function()
+        local setting = self.settings:compatibilityMode()
+        self.settings:updateSetting(SETTING.COMPATIBILITY_MODE, not setting)
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[Disable fancy menu for book and edition search results.
+          
+May improve compatibility for some versions of KOReader]],
+        })
+      end
+    },
+    {
+      text = "Include location info in regular notes",
+      checked_func = function()
+        return self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
+      end,
+      callback = function()
+        local setting = self.settings:readSetting(SETTING.INCLUDE_LOCATION_IN_NOTES) == true
+        self.settings:updateSetting(SETTING.INCLUDE_LOCATION_IN_NOTES, not setting)
+      end,
+      hold_callback = function()
+        UIManager:show(InfoMessage:new {
+          text = [[Automatically append Chapter, Page, and % info to your regular notes. 
+          
+Quotes always include this info.]],
+        })
+      end,
+      separator = true
+    },
+    {
+      text = "Account (Cookies & Tokens)",
+      sub_item_table_func = function()
+        return self:getAuthSubMenuItems()
+      end,
+    },
+    {
+      text = "Plugin Updates",
+      sub_item_table_func = function()
+        return self:getUpdateSubMenuItems()
+      end,
+    },
   }
 end
 

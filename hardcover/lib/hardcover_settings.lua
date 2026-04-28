@@ -182,7 +182,7 @@ function HardcoverSettings:fileSyncEnabled(file)
   if sync_value == nil then
     sync_value = self.settings:readSetting(SETTING.ALWAYS_SYNC)
   end
-  return sync_value == true
+  return sync_value ~= false
 end
 
 function HardcoverSettings:syncEnabled()
@@ -217,7 +217,15 @@ function HardcoverSettings:trackByTime()
 end
 
 function HardcoverSettings:trackByProgress()
-  return self.settings:readSetting(SETTING.TRACK_METHOD) == SETTING.TRACK.PROGRESS
+  local method = self.settings:readSetting(SETTING.TRACK_METHOD)
+  -- Fallback if pages tracking is selected but remote page count is missing
+  if method == SETTING.TRACK.PAGES then
+    local pages = self:pages()
+    if not pages or pages <= 0 then
+      return true
+    end
+  end
+  return method == SETTING.TRACK.PROGRESS
 end
 
 function HardcoverSettings:changeTrackPercentageInterval(percent)
@@ -237,11 +245,12 @@ function HardcoverSettings:menuConfirm()
 end
 
 function HardcoverSettings:syncByRemotePages()
-  return self.settings:readSetting(SETTING.SYNC_BY_REMOTE_PAGES) == true
+  return self.settings:readSetting(SETTING.SYNC_BY_REMOTE_PAGES) ~= false
 end
 
 function HardcoverSettings:trackByPages()
-  return self.settings:readSetting(SETTING.TRACK_METHOD) == SETTING.TRACK.PAGES
+  local pages = self:pages()
+  return self.settings:readSetting(SETTING.TRACK_METHOD) == SETTING.TRACK.PAGES and (pages and pages > 0)
 end
 
 function HardcoverSettings:trackPageStep()
