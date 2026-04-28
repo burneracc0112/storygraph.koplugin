@@ -31,19 +31,21 @@ The StoryGraph menu is located in the **Bookmark** top menu when a document is a
 The plugin provides a unified **"Update progress: [XX]%"** menu item. This opens a powerful dialog where you can:
 - **Set Progress**: Tap the progress button to open a native picker showing both your **KOReader** and **StoryGraph** synced percentages.
 - **Add a Note**: Write your thoughts directly in the note field.
-- **Set Date**: Tap the date button to use a beautiful side-by-side **Year-Month-Day** picker.
 - **Location Context**: By default, notes sent via the highlight menu automatically include your current **Chapter, Page, and Percentage**. You can enable this for regular notes in the settings.
 
 ### Linking a Book
 Before updates can be sent, the plugin needs to link your document to a StoryGraph book.
 - Use **"Link book"** to search by metadata or ISBN.
-- Use **"Change edition"** to select the specific version (Physical, Digital, etc.) that matches your document.
+- Use **"Change edition"** to switch to a different edition.
+- Audio editions are filtered out of the search results.
+- If a book is not currently tracked, the plugin will set its status to Currently Reading
+- If another edition of the book is set as 'Currently Reading' or 'Want to Read' then the plugin will automatically link to that edition, but not change the status. You can use "Change edition" to link to a different edition if needed.
 
 ### Automatically Track Progress
 When enabled, the plugin will periodically sync your progress to StoryGraph:
 - Updates are sent when paging, no more than once per minute (configurable).
 - When reaching the end of the document, the book is automatically marked as "Read" on StoryGraph.
-- For EPUBs, the plugin converts your local progress to a percentage based on the StoryGraph edition's total pages.
+- Progress can be synced automatically based on time duration, percentage read or pages read (based on edition page count).
 
 ## Settings
 
@@ -57,7 +59,7 @@ When enabled, the plugin will periodically sync your progress to StoryGraph:
 To prevent data corruption and ensure compatibility with StoryGraph's unofficial API, the plugin includes a remote versioning system.
 
 - **Automatic Checks**: The plugin periodically checks for mandatory updates via GitHub. If the StoryGraph API changes in a way that breaks older versions, the plugin will automatically disable sync to prevent errors.
-- **Smart Blocking**: When a mandatory update is required, the plugin menus will be greyed out.
+- **Blocking**: When a mandatory update is required, the plugin menus will be greyed out.
 - **Configurable Frequency**: Use the **"Version check frequency"** slider to choose how often the plugin checks for updates (from 1 to 20 days). Default is 1 day.
 - **Manual Override**: You can enable **"Ignore version blocks"** to bypass mandatory update requirements. Use this with caution as older versions may break sync if the StoryGraph API changes.
 - **Silent Mode**: Disable **"Show version alert dialog"** if you prefer the plugin to silently stop working when an update is required, rather than showing a notification.

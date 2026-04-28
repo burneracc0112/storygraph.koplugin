@@ -1,5 +1,5 @@
 {
-  "plugin_version": "0.1.0",
+  "plugin_version": "0.2.0",
   "api_version": 1,
   "message": "A mandatory update is required due to StoryGraph API changes. Please update the plugin to continue."
 }
