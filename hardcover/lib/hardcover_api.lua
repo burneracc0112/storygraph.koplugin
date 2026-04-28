@@ -362,6 +362,7 @@ function HardcoverApi:findUserBook(book_id, user_id)
   -- Progress
   local progress_pane = root:select(".progress-tracker-pane")[1]
   local last_reached_percent = 0
+  local last_reached_pages = 0
   local book_num_of_pages = 0
   local progress_type = "percentage"
   
@@ -396,6 +397,12 @@ function HardcoverApi:findUserBook(book_id, user_id)
         logger.info("StoryGraph: progress from text scan = " .. last_reached_percent .. "%")
       end
     end
+    
+    local pages_input = progress_pane:select(".read-status-last-reached-pages")[1]
+    if pages_input then
+      last_reached_pages = tonumber(pages_input.attributes.value) or 0
+      logger.info("StoryGraph: last reached pages = " .. last_reached_pages)
+    end
   end
 
   local res = {
@@ -405,11 +412,13 @@ function HardcoverApi:findUserBook(book_id, user_id)
     book_num_of_pages = book_num_of_pages,
     page_count = book_num_of_pages,
     last_reached_percent = last_reached_percent,
+    last_reached_pages = last_reached_pages,
+    percent_finished = last_reached_percent,
     progress_type = progress_type,
     user_book_reads = {
       {
         id = book_id .. "_read",
-        progress_pages = progress_pages,
+        progress_pages = last_reached_pages,
         started_at = os.date("%Y-%m-%d"),
       }
     },

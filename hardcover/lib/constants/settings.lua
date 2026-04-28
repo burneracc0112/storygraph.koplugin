@@ -23,6 +23,7 @@ local Settings = {
   VERSION_CHECK_INTERVAL = "version_check_interval",
   LAST_VERSION_CHECK = "last_version_check",
   SKIP_BEHIND_PROGRESS = "skip_behind_progress",
+  SYNC_BY_REMOTE_PAGES = "sync_by_remote_pages",
 }
 
 Settings.AUTOLINK_OPTIONS = { Settings.LINK_BY_ISBN, Settings.LINK_BY_TITLE }

@@ -139,8 +139,13 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
   local settings = self.settings:readBookSettings(document.file) or {}
   local total_pages = document:getPageCount()
 
+  local sync_by_pages = self.settings:syncByRemotePages()
   if not initial_percent then
-    initial_percent = math.floor((page / total_pages) * 100 + 0.5)
+    if sync_by_pages then
+      initial_percent = self.page_mapper:getMappedPage(page, total_pages, remote_pages)
+    else
+      initial_percent = math.floor((page / total_pages) * 100 + 0.5)
+    end
   end
 
   -- Augment text with location info
@@ -173,6 +178,7 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
     page = initial_percent,
     remote_page = remote_pages,
     remote_percent = remote_percent,
+    progress_type = sync_by_pages and "page" or "percentage",
     page_mapper = self.page_mapper,
     save_dialog_callback = function(book_data)
       local api_data = mapJournalData(book_data)

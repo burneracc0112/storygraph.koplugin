@@ -727,6 +727,19 @@ function HardcoverMenu:getTrackingSubMenuItems()
       end,
       keep_menu_open = true
     },
+    {
+      text = _("Auto sync by edition pages"),
+      checked_func = function()
+        return self.settings:syncByRemotePages()
+      end,
+      enabled_func = function()
+        return self:isActive() and self.settings:bookLinked()
+      end,
+      callback = function()
+        local setting = self.settings:syncByRemotePages()
+        self.settings:updateSetting(SETTING.SYNC_BY_REMOTE_PAGES, not setting)
+      end,
+    },
   }
 end
 

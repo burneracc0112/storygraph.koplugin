@@ -202,4 +202,8 @@ function HardcoverSettings:menuConfirm()
   return self.settings:readSetting(SETTING.MENU_CONFIRMATION) == true
 end
 
+function HardcoverSettings:syncByRemotePages()
+  return self.settings:readSetting(SETTING.SYNC_BY_REMOTE_PAGES) == true
+end
+
 return HardcoverSettings
