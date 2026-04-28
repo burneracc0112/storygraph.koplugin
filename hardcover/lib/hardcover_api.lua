@@ -299,33 +299,58 @@ function HardcoverApi:findBooks(title, author, userId)
         
         logger.warn("StoryGraph found book:", book_id, "| Title:", title_text, "| Author:", author_text)
       
-      -- Cover image
-      local cover_el = el.parent and el.parent.parent and el.parent.parent:select("img")[1]
-      local cover_url = cover_el and cover_el.attributes.src
-      
-      -- Page count
-      local page_count = 0
-      local info_el = el.parent and el.parent:select("p[class*='text-xs']")[1]
-      if info_el then
-        local info_text = get_node_text(info_el)
-        local pages = info_text:match("(%d+) pages")
-        if pages then
-          page_count = tonumber(pages)
+        -- Cover image
+        local cover_el = el.parent and el.parent.parent and el.parent.parent:select("img")[1]
+        local cover_url = cover_el and cover_el.attributes.src
+        
+        -- Page count
+        local page_count = 0
+        local info_el = el.parent and el.parent:select("p[class*='text-xs']")[1]
+        if info_el then
+          local info_text = get_node_text(info_el)
+          local pages = info_text:match("(%d+) pages")
+          if pages then
+            page_count = tonumber(pages)
+          end
         end
-      end
-      
-      table.insert(results, {
-        book_id = book_id,
-        title = title_text,
-        -- Mocking StoryGraph structure
-        contributions = { { author = { name = author_text } } },
-        cached_image = { url = cover_url },
-        book_series = {},
-        description = "",
-        page_count = page_count,
-        pages = page_count, -- Sometimes used interchangeably
-        release_date = ""
-      })
+        
+        -- Audio Filter
+        local is_audio = false
+        local pane = el.parent
+        if pane then
+          -- Try to find edition info specifically for this book_id first
+          local edition_info = pane:select(".edition-info[data-book-id='" .. book_id .. "'] p")
+          if #edition_info == 0 then
+            -- Fallback to any edition info in this pane
+            edition_info = pane:select(".edition-info p")
+          end
+
+          for _, p in ipairs(edition_info) do
+            local t = get_node_text(p)
+            if t:match("Format:") then
+              local format = t:gsub(".*Format:%s*", ""):gsub("^%s*(.-)%s*$", "%1")
+              if format:lower():find("audio") then
+                is_audio = true
+                break
+              end
+            end
+          end
+        end
+
+        if not is_audio then
+          table.insert(results, {
+            book_id = book_id,
+            title = title_text,
+            -- Mocking StoryGraph structure
+            contributions = { { author = { name = author_text } } },
+            cached_image = { url = cover_url },
+            book_series = {},
+            description = "",
+            page_count = page_count,
+            pages = page_count, -- Sometimes used interchangeably
+            release_date = ""
+          })
+        end
       end
     end
   end
@@ -949,21 +974,23 @@ function HardcoverApi:findEditions(book_id, user_id)
         end
       end
 
-      table.insert(editions, {
-        book_id = id,
-        edition_id = id,
-        title = title:gsub("^%s*(.-)%s*$", "%1"),
-        edition_format = format,
-        pages = pages,
-        duration = edition_duration,
-        isbn = isbn,
-        edition_language = language,
-        pub_year = pub_year,
-        pub_date = pub_date,
-        publisher = publisher,
-        cached_image = { url = cover_url },
-        contributions = {}, -- keep it empty, the UI can still display title
-      })
+      if not format:lower():find("audio") then
+        table.insert(editions, {
+          book_id = id,
+          edition_id = id,
+          title = title:gsub("^%s*(.-)%s*$", "%1"),
+          edition_format = format,
+          pages = pages,
+          duration = edition_duration,
+          isbn = isbn,
+          edition_language = language,
+          pub_year = pub_year,
+          pub_date = pub_date,
+          publisher = publisher,
+          cached_image = { url = cover_url },
+          contributions = {}, -- keep it empty, the UI can still display title
+        })
+      end
     end
   end
 
