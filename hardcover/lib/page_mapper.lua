@@ -10,7 +10,13 @@ end
 function PageMapper:getUnmappedPage(remote_page, document_pages, remote_pages)
   self:checkIgnorePagemap()
 
-  local document_page = self.state.page_map and _t.binSearch(self.state.page_map, remote_page)
+  local target_page = remote_page
+  if self.state.page_map and remote_pages and self.state.page_map_range and self.state.page_map_range.real_page then
+    -- Scale remote page back to local pagemap scale
+    target_page = math.floor((remote_page / remote_pages) * self.state.page_map_range.real_page + 0.5)
+  end
+
+  local document_page = self.state.page_map and _t.binSearch(self.state.page_map, target_page)
 
   if not document_page then
     document_page = math.floor((remote_page / remote_pages) * document_pages + 0.5)
@@ -25,6 +31,10 @@ function PageMapper:getMappedPage(raw_page, document_pages, remote_pages)
   if self.state.page_map then
     local mapped_page = self.state.page_map[raw_page]
     if mapped_page then
+      if remote_pages and self.state.page_map_range and self.state.page_map_range.real_page then
+        -- Scale local pagemap page to remote edition scale
+        return math.floor((mapped_page / self.state.page_map_range.real_page) * remote_pages + 0.5)
+      end
       return mapped_page
     elseif raw_page > self.state.page_map_range.last_page then
       return remote_pages or self.state.page_map_range.real_page
@@ -114,11 +124,13 @@ function PageMapper:getRemotePagePercent(raw_page, document_pages, remote_pages)
     end
 
     if mapped_page then
+      local pagemap_total = (self.state.page_map_range and self.state.page_map_range.real_page) or 1
       if remote_pages then
-        -- return labeled page divided by edition page count to maintain correct page/percentage in journal entries
-        return math.min(1.0, mapped_page / remote_pages), mapped_page
-      elseif self.state.page_map_range and self.state.page_map_range.real_page then
-        local_percent = mapped_page / self.state.page_map_range.real_page
+        -- Scale local pagemap page to remote edition scale
+        local scaled_page = math.floor((mapped_page / pagemap_total) * remote_pages + 0.5)
+        return math.min(1.0, scaled_page / remote_pages), scaled_page
+      else
+        local_percent = mapped_page / pagemap_total
       end
     end
   end

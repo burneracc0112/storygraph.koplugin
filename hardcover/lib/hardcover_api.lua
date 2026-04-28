@@ -633,7 +633,10 @@ function HardcoverApi:updatePage(user_read_id, edition_id, value, started_at, up
     logger.warn("StoryGraph: Could not extract CSRF token for progress update")
   end
 
-  local book_num_of_pages = html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"') or "0"
+  local book_num_of_pages = html:match('name="read_status%[book_num_of_pages%]"%s+[^>]*value="([^"]+)"')
+    or html:match('value="([^"]+)"%s+[^>]*name="read_status%[book_num_of_pages%]"')
+    or html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"')
+    or "0"
 
   local update_url = base_url .. "/update-progress"
   update_type = update_type or "percentage"
@@ -682,9 +685,18 @@ function HardcoverApi:createJournalEntry(data)
   end
 
   -- Extract current progress values to send back (required by StoryGraph)
-  local last_reached_pages = html:match('class="read%-status%-last%-reached%-pages"%s+[^>]*value="([^"]+)"') or "0"
-  local book_num_of_pages = html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"') or "0"
-  local last_reached_percent = html:match('class="read%-status%-last%-reached%-percent"%s+[^>]*value="([^"]+)"') or "0"
+  local last_reached_pages = html:match('name="read_status%[last_reached_pages%]"%s+[^>]*value="([^"]+)"')
+    or html:match('value="([^"]+)"%s+[^>]*name="read_status%[last_reached_pages%]"')
+    or html:match('class="read%-status%-last%-reached%-pages"%s+[^>]*value="([^"]+)"')
+    or "0"
+  local book_num_of_pages = html:match('name="read_status%[book_num_of_pages%]"%s+[^>]*value="([^"]+)"')
+    or html:match('value="([^"]+)"%s+[^>]*name="read_status%[book_num_of_pages%]"')
+    or html:match('class="read%-status%-book%-num%-of%-pages"%s+[^>]*value="([^"]+)"')
+    or "0"
+  local last_reached_percent = html:match('name="read_status%[last_reached_percent%]"%s+[^>]*value="([^"]+)"')
+    or html:match('value="([^"]+)"%s+[^>]*name="read_status%[last_reached_percent%]"')
+    or html:match('class="read%-status%-last%-reached%-percent"%s+[^>]*value="([^"]+)"')
+    or "0"
 
   local update_url = base_url .. "/update-progress-with-note"
 

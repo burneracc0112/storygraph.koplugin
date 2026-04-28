@@ -370,22 +370,25 @@ function HardcoverMenu:getStatusSubMenuItems()
       text_func = function()
         local current_page = self.ui:getCurrentPage()
         local total_pages = self.ui.document:getPageCount()
-        local current_percent = math.floor((current_page / total_pages) * 100)
-        return T(_("Update progress: %1%"), current_percent)
+        local remote_pages = self.settings:pages()
+        if self.settings:syncByRemotePages() then
+          local mapped_page = self.page_mapper:getMappedPage(current_page, total_pages, remote_pages)
+          return T(_("Update progress: Page %1 / %2"), mapped_page, remote_pages or "?")
+        else
+          local current_percent = math.floor((current_page / total_pages) * 100 + 0.5)
+          return T(_("Update progress: %1%"), current_percent)
+        end
       end,
       callback = function()
         local current_page = self.ui:getCurrentPage()
-        local total_pages = self.ui.document:getPageCount()
-        local local_percent = math.floor((current_page / total_pages) * 100)
         local remote_percent = self.state.book_status.last_reached_percent or 0
 
-        -- allow premapped page
         self.dialog_manager:journalEntryForm(
           "",
           self.ui.document,
           current_page,
           self.settings:pages(),
-          local_percent,
+          nil, -- let journalEntryForm handle it based on settings
           remote_percent,
           "note"
         )
@@ -719,6 +722,42 @@ function HardcoverMenu:getTrackingSubMenuItems()
           title_text = _("Set track progress"),
           callback = function(spin)
             self.settings:changeTrackPercentageInterval(spin.value)
+            menu_instance:updateItems()
+          end
+        }
+
+        UIManager:show(spinner)
+      end,
+      keep_menu_open = true
+    },
+    {
+      text = "Update by edition pages",
+      radio = true,
+      checked_func = function()
+        return self.settings:trackByPages()
+      end,
+      callback = function()
+        self.settings:setTrackMethod(SETTING.TRACK.PAGES)
+      end
+    },
+    {
+      text_func = function()
+        return "Every " .. self.settings:trackPageStep() .. " pages completed"
+      end,
+      enabled_func = function()
+        return self.settings:trackByPages()
+      end,
+      callback = function(menu_instance)
+        local spinner = SpinWidget:new {
+          value = self.settings:trackPageStep(),
+          value_min = 1,
+          value_max = 500,
+          value_step = 1,
+          value_hold_step = 10,
+          ok_text = _("Save"),
+          title_text = _("Set track pages"),
+          callback = function(spin)
+            self.settings:updateSetting(SETTING.TRACK_PAGE_STEP, spin.value)
             menu_instance:updateItems()
           end
         }

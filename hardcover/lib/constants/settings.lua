@@ -13,6 +13,7 @@ local Settings = {
   TRACK = {
     FREQUENCY = "frequency",
     PROGRESS = "progress",
+    PAGES = "pages",
   },
   USER_ID = "user_id",
   SESSION_COOKIE = "session_cookie",
@@ -24,6 +25,8 @@ local Settings = {
   LAST_VERSION_CHECK = "last_version_check",
   SKIP_BEHIND_PROGRESS = "skip_behind_progress",
   SYNC_BY_REMOTE_PAGES = "sync_by_remote_pages",
+  TRACK_BY_PAGES = "track_by_pages",
+  TRACK_PAGE_STEP = "track_page_step",
 }
 
 Settings.AUTOLINK_OPTIONS = { Settings.LINK_BY_ISBN, Settings.LINK_BY_TITLE }

@@ -206,4 +206,12 @@ function HardcoverSettings:syncByRemotePages()
   return self.settings:readSetting(SETTING.SYNC_BY_REMOTE_PAGES) == true
 end
 
+function HardcoverSettings:trackByPages()
+  return self.settings:readSetting(SETTING.TRACK_METHOD) == SETTING.TRACK.PAGES
+end
+
+function HardcoverSettings:trackPageStep()
+  return self.settings:readSetting(SETTING.TRACK_PAGE_STEP) or 10
+end
+
 return HardcoverSettings

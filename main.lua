@@ -360,7 +360,7 @@ function HardcoverApp:_handlePageUpdate(filename, value, immediate, callback, up
       logger.info("StoryGraph: Local progress (" .. value .. "%) is behind remote (" .. remote_percent .. "%). Skipping update.")
       return
     end
-  elseif skip_behind and update_type == "page" then
+  elseif skip_behind and update_type == "pages" then
     local remote_page = tonumber(self.state.book_status.last_reached_pages) or 0
     if not immediate and value < remote_page then
       logger.info("StoryGraph: Local progress (" .. value .. " pages) is behind remote (" .. remote_page .. " pages). Skipping update.")
@@ -429,7 +429,7 @@ function HardcoverApp:pageUpdateEvent(page)
     local value, update_type
     if self.settings:syncByRemotePages() and mapped_page then
       value = mapped_page
-      update_type = "page"
+      update_type = "pages"
     else
       value = math.floor(decimal_percent * 100 + 0.5)
       update_type = "percentage"
@@ -437,31 +437,39 @@ function HardcoverApp:pageUpdateEvent(page)
 
     self:_throttledHandlePageUpdate(self.ui.document.file, value, false, nil, update_type)
     self.page_update_pending = true
-  elseif self.settings:trackByProgress() and self.state.last_page then
-    local percent_interval = self.settings:trackPercentageInterval()
-
-    local previous_percent = self.page_mapper:getRemotePagePercent(
+  elseif (self.settings:trackByProgress() or self.settings:trackByPages()) and self.state.last_page then
+    local previous_percent, previous_mapped_page = self.page_mapper:getRemotePagePercent(
       self.state.last_page,
       document_pages,
       remote_pages
     )
 
-    local current_percent, mapped_page = self.page_mapper:getRemotePagePercent(
+    local current_percent, current_mapped_page = self.page_mapper:getRemotePagePercent(
       self.state.page,
       document_pages,
       remote_pages
     )
 
-    local last_compare = math.floor(previous_percent * 100 / percent_interval)
-    local current_compare = math.floor(current_percent * 100 / percent_interval)
+    local should_sync = false
+    if self.settings:trackByProgress() then
+      local percent_interval = self.settings:trackPercentageInterval()
+      local last_compare = math.floor(previous_percent * 100 / percent_interval)
+      local current_compare = math.floor(current_percent * 100 / percent_interval)
+      should_sync = (last_compare ~= current_compare)
+    elseif self.settings:trackByPages() then
+      local page_step = self.settings:trackPageStep()
+      local last_compare = math.floor(previous_mapped_page / page_step)
+      local current_compare = math.floor(current_mapped_page / page_step)
+      should_sync = (last_compare ~= current_compare)
+    end
 
-    if last_compare ~= current_compare then
+    if should_sync then
       local percentage = math.floor(current_percent * 100 + 0.5)
       local last_percent = math.floor(previous_percent * 100 + 0.5)
       local remote_percent = self.state.book_status.percent_finished or 0
       if percentage > last_percent and percentage >= remote_percent then
-        if self.settings:syncByRemotePages() and mapped_page then
-          self:_handlePageUpdate(self.ui.document.file, mapped_page, false, nil, "page")
+        if self.settings:syncByRemotePages() and current_mapped_page then
+          self:_handlePageUpdate(self.ui.document.file, current_mapped_page, false, nil, "pages")
         else
           self:_handlePageUpdate(self.ui.document.file, percentage)
         end
@@ -610,7 +618,7 @@ function HardcoverApp:updatePageNow(callback, value, update_type)
     )
     if self.settings:syncByRemotePages() and mapped_page then
       value = mapped_page
-      update_type = "page"
+      update_type = "pages"
     else
       value = math.floor(decimal_percent * 100 + 0.5)
       update_type = "percentage"

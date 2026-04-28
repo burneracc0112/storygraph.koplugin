@@ -178,7 +178,7 @@ function DialogManager:journalEntryForm(text, document, page, remote_pages, init
     page = initial_percent,
     remote_page = remote_pages,
     remote_percent = remote_percent,
-    progress_type = sync_by_pages and "page" or "percentage",
+    progress_type = sync_by_pages and "pages" or "percentage",
     page_mapper = self.page_mapper,
     save_dialog_callback = function(book_data)
       local api_data = mapJournalData(book_data)
