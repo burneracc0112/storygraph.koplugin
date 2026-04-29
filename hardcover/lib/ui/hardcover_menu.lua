@@ -581,7 +581,8 @@ function HardcoverMenu:getReviewSubMenuItems(menu_instance)
       text = "Themes",
       callback = function(menu_instance)
         local MultiInput = require("ui/widget/multiinputdialog")
-        local themes_dialog = MultiInput:new {
+        local themes_dialog
+        themes_dialog = MultiInput:new {
           title = "Themes (comma separated)",
           fields = {
             {
@@ -590,16 +591,21 @@ function HardcoverMenu:getReviewSubMenuItems(menu_instance)
           },
           buttons = {
             {
-              text = _("Cancel"),
-              id = "close",
-            },
-            {
-              text = _("Set"),
-              callback = function(dialog)
-                review.themes = dialog:getFields()[1]
-                menu_instance:updateItems()
-                UIManager:close(dialog)
-              end
+              {
+                text = _("Cancel"),
+                id = "close",
+                callback = function()
+                  UIManager:close(themes_dialog)
+                end,
+              },
+              {
+                text = _("Set"),
+                callback = function()
+                  review.themes = themes_dialog:getFields()[1]
+                  menu_instance:updateItems()
+                  UIManager:close(themes_dialog)
+                end
+              }
             }
           }
         }
@@ -612,7 +618,8 @@ function HardcoverMenu:getReviewSubMenuItems(menu_instance)
       callback = function(inner_menu)
         local m = inner_menu or menu_instance
         local MultiInput = require("ui/widget/multiinputdialog")
-        local thoughts_dialog = MultiInput:new {
+        local thoughts_dialog
+        thoughts_dialog = MultiInput:new {
           title = "Your thoughts",
           fields = {
             {
@@ -622,16 +629,21 @@ function HardcoverMenu:getReviewSubMenuItems(menu_instance)
           },
           buttons = {
             {
-              text = _("Cancel"),
-              id = "close",
-            },
-            {
-              text = _("Set"),
-              callback = function(dialog)
-                review.thoughts = dialog:getFields()[1]
-                if m then m:updateItems() end
-                UIManager:close(dialog)
-              end
+              {
+                text = _("Cancel"),
+                id = "close",
+                callback = function()
+                  UIManager:close(thoughts_dialog)
+                end,
+              },
+              {
+                text = _("Set"),
+                callback = function()
+                  review.thoughts = thoughts_dialog:getFields()[1]
+                  if m then m:updateItems() end
+                  UIManager:close(thoughts_dialog)
+                end
+              }
             }
           }
         }
@@ -651,6 +663,13 @@ function HardcoverMenu:getReviewSubMenuItems(menu_instance)
         else
           UIManager:show(InfoMessage:new { text = "Failed to save review" })
         end
+      end
+    },
+    {
+      text = "Cancel Review",
+      callback = function(menu_instance)
+        self.state.review = nil
+        menu_instance:onClose()
       end
     }
   }
@@ -894,18 +913,20 @@ function HardcoverMenu:getAuthSubMenuItems()
           },
           buttons = {
             {
-              text = _("Cancel"),
-              callback = function()
-                UIManager:close(dialog)
-              end,
-            },
-            {
-              text = _("Save"),
-              callback = function()
-                local value = dialog:getFields()[1]:getText()
-                self.settings:updateSetting(SETTING.SESSION_COOKIE, value)
-                UIManager:close(dialog)
-              end,
+              {
+                text = _("Cancel"),
+                callback = function()
+                  UIManager:close(dialog)
+                end,
+              },
+              {
+                text = _("Save"),
+                callback = function()
+                  local value = dialog:getFields()[1]
+                  self.settings:updateSetting(SETTING.SESSION_COOKIE, value)
+                  UIManager:close(dialog)
+                end,
+              },
             },
           },
         }
@@ -926,18 +947,20 @@ function HardcoverMenu:getAuthSubMenuItems()
           },
           buttons = {
             {
-              text = _("Cancel"),
-              callback = function()
-                UIManager:close(dialog)
-              end,
-            },
-            {
-              text = _("Save"),
-              callback = function()
-                local value = dialog:getFields()[1]:getText()
-                self.settings:updateSetting(SETTING.REMEMBER_TOKEN, value)
-                UIManager:close(dialog)
-              end,
+              {
+                text = _("Cancel"),
+                callback = function()
+                  UIManager:close(dialog)
+                end,
+              },
+              {
+                text = _("Save"),
+                callback = function()
+                  local value = dialog:getFields()[1]
+                  self.settings:updateSetting(SETTING.REMEMBER_TOKEN, value)
+                  UIManager:close(dialog)
+                end,
+              },
             },
           },
         }
