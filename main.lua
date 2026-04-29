@@ -15,23 +15,23 @@ local Notification = require("ui/widget/notification")
 
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 
-local _t = require("hardcover/lib/table_util")
-local Api = require("hardcover/lib/hardcover_api")
-local AutoWifi = require("hardcover/lib/auto_wifi")
-local Cache = require("hardcover/lib/cache")
-local debounce = require("hardcover/lib/debounce")
-local Hardcover = require("hardcover/lib/hardcover")
-local HardcoverSettings = require("hardcover/lib/hardcover_settings")
-local PageMapper = require("hardcover/lib/page_mapper")
-local Scheduler = require("hardcover/lib/scheduler")
-local throttle = require("hardcover/lib/throttle")
-local User = require("hardcover/lib/user")
+local _t = require("storygraph/lib/table_util")
+local Api = require("storygraph/lib/hardcover_api")
+local AutoWifi = require("storygraph/lib/auto_wifi")
+local Cache = require("storygraph/lib/cache")
+local debounce = require("storygraph/lib/debounce")
+local Hardcover = require("storygraph/lib/hardcover")
+local HardcoverSettings = require("storygraph/lib/hardcover_settings")
+local PageMapper = require("storygraph/lib/page_mapper")
+local Scheduler = require("storygraph/lib/scheduler")
+local throttle = require("storygraph/lib/throttle")
+local User = require("storygraph/lib/user")
 
-local DialogManager = require("hardcover/lib/ui/dialog_manager")
-local HardcoverMenu = require("hardcover/lib/ui/hardcover_menu")
+local DialogManager = require("storygraph/lib/ui/dialog_manager")
+local HardcoverMenu = require("storygraph/lib/ui/hardcover_menu")
 
-local HARDCOVER = require("hardcover/lib/constants/hardcover")
-local SETTING = require("hardcover/lib/constants/settings")
+local HARDCOVER = require("storygraph/lib/constants/hardcover")
+local SETTING = require("storygraph/lib/constants/settings")
 
 local HardcoverApp = WidgetContainer:extend {
   name = "storygraph",
@@ -521,7 +521,7 @@ function HardcoverApp:checkForUpdates()
   end
 
   self.wifi:withWifi(function()
-    local Github = require("hardcover/lib/github")
+    local Github = require("storygraph/lib/github")
     local info = Github:fetchVersionInfo()
     if not info then return end
 

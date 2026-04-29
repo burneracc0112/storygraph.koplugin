@@ -3,15 +3,15 @@ local logger = require("logger")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local json = require("json")
-local _t = require("hardcover/lib/table_util")
+local _t = require("storygraph/lib/table_util")
 local T = require("ffi/util").template
 local Trapper = require("ui/trapper")
 local NetworkManager = require("ui/network/manager")
 local socketutil = require("socketutil")
 local htmlparser = require("htmlparser")
 
-local Book = require("hardcover/lib/book")
-local SETTING = require("hardcover/lib/constants/settings")
+local Book = require("storygraph/lib/book")
+local SETTING = require("storygraph/lib/constants/settings")
 local VERSION = require("hardcover_version")
 
 local base_url = "https://app.thestorygraph.com"

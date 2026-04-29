@@ -8,15 +8,15 @@ local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local FileSearcher = require("apps/filemanager/filemanagerfilesearcher")
 
-local Api = require("hardcover/lib/hardcover_api")
-local Book = require("hardcover/lib/book")
-local User = require("hardcover/lib/user")
+local Api = require("storygraph/lib/hardcover_api")
+local Book = require("storygraph/lib/book")
+local User = require("storygraph/lib/user")
 
-local HARDCOVER = require("hardcover/lib/constants/hardcover")
-local SETTING = require("hardcover/lib/constants/settings")
+local HARDCOVER = require("storygraph/lib/constants/hardcover")
+local SETTING = require("storygraph/lib/constants/settings")
 
-local JournalDialog = require("hardcover/lib/ui/journal_dialog")
-local SearchDialog = require("hardcover/lib/ui/search_dialog")
+local JournalDialog = require("storygraph/lib/ui/journal_dialog")
+local SearchDialog = require("storygraph/lib/ui/search_dialog")
 
 local DialogManager = {}
 DialogManager.__index = DialogManager

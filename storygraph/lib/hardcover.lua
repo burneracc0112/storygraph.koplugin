@@ -8,12 +8,12 @@ local UIManager = require("ui/uimanager")
 local Notification = require("ui/widget/notification")
 local InfoMessage = require("ui/widget/infomessage")
 
-local Api = require("hardcover/lib/hardcover_api")
-local Book = require("hardcover/lib/book")
-local User = require("hardcover/lib/user")
+local Api = require("storygraph/lib/hardcover_api")
+local Book = require("storygraph/lib/book")
+local User = require("storygraph/lib/user")
 
-local SETTING = require("hardcover/lib/constants/settings")
-local HARDCOVER = require("hardcover/lib/constants/hardcover")
+local SETTING = require("storygraph/lib/constants/settings")
+local HARDCOVER = require("storygraph/lib/constants/hardcover")
 
 local cache = {}
 

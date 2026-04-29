@@ -1,4 +1,4 @@
-local SETTING = require("hardcover/lib/constants/settings")
+local SETTING = require("storygraph/lib/constants/settings")
 
 local Device = require("device")
 local logger = require("logger")

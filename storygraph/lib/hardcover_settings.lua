@@ -2,8 +2,8 @@ local KoreaderVersion = require("version")
 local LuaSettings = require("luasettings")
 local DocSettings = require("docsettings")
 
-local _t = require("hardcover/lib/table_util")
-local SETTING = require("hardcover/lib/constants/settings")
+local _t = require("storygraph/lib/table_util")
+local SETTING = require("storygraph/lib/constants/settings")
 
 local HardcoverSettings = {}
 HardcoverSettings.__index = HardcoverSettings

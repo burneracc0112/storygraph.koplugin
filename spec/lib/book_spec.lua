@@ -1,4 +1,4 @@
-local Book = require("hardcover/lib/book")
+local Book = require("storygraph/lib/book")
 
 describe("Book", function()
   describe("parseIdentifiers", function()

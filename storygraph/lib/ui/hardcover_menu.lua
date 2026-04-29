@@ -11,19 +11,19 @@ local Event = require("ui/event")
 local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 
-local UpdateDoubleSpinWidget = require("hardcover/lib/ui/update_double_spin_widget")
+local UpdateDoubleSpinWidget = require("storygraph/lib/ui/update_double_spin_widget")
 local InfoMessage = require("ui/widget/infomessage")
 local Notification = require("ui/widget/notification")
 local SpinWidget = require("ui/widget/spinwidget")
 
-local Api = require("hardcover/lib/hardcover_api")
-local Github = require("hardcover/lib/github")
-local User = require("hardcover/lib/user")
-local _t = require("hardcover/lib/table_util")
+local Api = require("storygraph/lib/hardcover_api")
+local Github = require("storygraph/lib/github")
+local User = require("storygraph/lib/user")
+local _t = require("storygraph/lib/table_util")
 
-local HARDCOVER = require("hardcover/lib/constants/hardcover")
-local ICON = require("hardcover/lib/constants/icons")
-local SETTING = require("hardcover/lib/constants/settings")
+local HARDCOVER = require("storygraph/lib/constants/hardcover")
+local ICON = require("storygraph/lib/constants/icons")
+local SETTING = require("storygraph/lib/constants/settings")
 local VERSION = require("hardcover_version")
 
 local HardcoverMenu = {}

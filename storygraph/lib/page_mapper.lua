@@ -1,4 +1,4 @@
-local _t = require("hardcover/lib/table_util")
+local _t = require("storygraph/lib/table_util")
 
 local PageMapper = {}
 PageMapper.__index = PageMapper

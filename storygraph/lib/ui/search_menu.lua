@@ -1,6 +1,6 @@
 local Menu = require("ui/widget/menu")
-local ListMenu = require("hardcover/vendor/listmenu")
-local CoverMenu = require("hardcover/vendor/covermenu")
+local ListMenu = require("storygraph/vendor/listmenu")
+local CoverMenu = require("storygraph/vendor/covermenu")
 
 local SearchMenu = Menu:extend {
   font_size = 22

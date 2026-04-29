@@ -1,5 +1,5 @@
-local SETTING = require("hardcover/lib/constants/settings")
-local Api = require("hardcover/lib/hardcover_api")
+local SETTING = require("storygraph/lib/constants/settings")
+local Api = require("storygraph/lib/hardcover_api")
 
 local User = {}
 
