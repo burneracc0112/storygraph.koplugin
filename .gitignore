@@ -1,4 +1,5 @@
 hardcover_config.lua
+storygraph_config.lua
 /luarocks
 /lua
 /lua_modules

@@ -8,20 +8,16 @@ A KOReader plugin to synchronize your reading progress, notes, and status to [Th
 > [!CAUTION]
 > **Disclaimer**: This plugin uses an unofficial API based on session cookies. Because of this, it is inherently brittle and may break if StoryGraph updates their website or cookie structure. If sync stops working, please ensure you are using the latest version of the plugin and try re-fetching your session tokens.
 
-> [!IMPORTANT]
-> **Compatibility**: This plugin **cannot** be installed simultaneously with the original Hardcover plugin. 
-> 
-> **Rationale**: I've kept the internal folder structure and code namespace identical to the original repository. This was done to ensure that any upstream improvements, bug fixes, or new features from the original Hardcover plugin can be easily merged into this fork.
-
 ## Installation
 
 1. Download the latest release and extract it to your KOReader `plugins/` folder.
-2. Rename `hardcover_config.example.lua` to `hardcover_config.lua`.
+2. Rename `storygraph_config.example.lua` to `storygraph_config.lua`.
+   - *Note: If you are upgrading from an older version, the plugin will automatically rename `hardcover_config.lua` to `storygraph_config.lua`.*
 3. **Authentication**:
    - Log in to [thestorygraph.com](https://thestorygraph.com) in your browser.
    - Open your browser's Developer Tools (F12) -> Application/Storage -> Cookies.
-   - Copy the value of the `_story_graph_session` cookie and paste it into the `session_cookie` field in `hardcover_config.lua`.
-   - Copy the value of the `remember_user_token` cookie and paste it into the `remember_user_token` field in `hardcover_config.lua`.
+   - Copy the value of the `_story_graph_session` cookie and paste it into the `session_cookie` field in `storygraph_config.lua`.
+   - Copy the value of the `remember_user_token` cookie and paste it into the `remember_user_token` field in `storygraph_config.lua`.
 
 ## Usage
 

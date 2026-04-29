@@ -24,7 +24,7 @@ local _t = require("storygraph/lib/table_util")
 local HARDCOVER = require("storygraph/lib/constants/hardcover")
 local ICON = require("storygraph/lib/constants/icons")
 local SETTING = require("storygraph/lib/constants/settings")
-local VERSION = require("hardcover_version")
+local VERSION = require("storygraph_version")
 
 local HardcoverMenu = {}
 HardcoverMenu.__index = HardcoverMenu

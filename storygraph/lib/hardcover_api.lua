@@ -1,4 +1,4 @@
-local config = require("hardcover_config")
+local config = require("storygraph_config")
 local logger = require("logger")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
@@ -12,7 +12,7 @@ local htmlparser = require("htmlparser")
 
 local Book = require("storygraph/lib/book")
 local SETTING = require("storygraph/lib/constants/settings")
-local VERSION = require("hardcover_version")
+local VERSION = require("storygraph_version")
 
 local base_url = "https://app.thestorygraph.com"
 

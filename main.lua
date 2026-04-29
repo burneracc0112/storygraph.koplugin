@@ -1,5 +1,22 @@
 local _ = require("gettext")
 local DataStorage = require("datastorage")
+
+-- Migration: Rename hardcover_config.lua to storygraph_config.lua if it exists
+local plugin_dir = DataStorage:getDataDir() .. "/plugins/storygraph.koplugin"
+local old_config = plugin_dir .. "/hardcover_config.lua"
+local new_config = plugin_dir .. "/storygraph_config.lua"
+
+local f_new = io.open(new_config, "r")
+if not f_new then
+    local f_old = io.open(old_config, "r")
+    if f_old then
+        f_old:close()
+        os.rename(old_config, new_config)
+    end
+else
+    f_new:close()
+end
+
 local Dispatcher = require("dispatcher")
 local DocSettings = require("docsettings")
 local logger = require("logger")
